@@ -39,3 +39,10 @@ void * memset (void * pdst, int v, size_t size)
 		dst[i] = (unsigned char) v;
 	return pdst;
 }
+
+size_t strlen (const char * str)
+{
+	size_t len = 0;
+	while (str[len]) { len++; }
+	return len;
+}

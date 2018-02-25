@@ -8,4 +8,6 @@ void *memcpy (void *dst, const void *src, size_t);
 void *memmove(void *dst, const void *src, size_t);
 void *memset (void *dst, int value, size_t);
 
+size_t strlen (const char *);
+
 #endif
