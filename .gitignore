@@ -1,0 +1,6 @@
+Makefile
+
+bin/
+!bin/.gitkeep
+obj/**/*.o
+log/**/*.log
