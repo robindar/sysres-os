@@ -1,0 +1,44 @@
+FILENAME ?= myos
+MCPU     ?= cortex-a53
+MEMORY   ?= 256
+MACHINE  ?= raspi2
+
+GCC      ?= $(shell which arm-none-eabi-gcc 2>/dev/null)
+QEMU     ?= $(shell which qemu-system-arm 2>/dev/null)
+
+SFLAGS += -mcpu=$(MCPU) -fpic -ffreestanding
+CFLAGS += -mcpu=$(MCPU) -fpic -ffreestanding -std=gnu99 -O2 -Wall -Wextra -nostdlib
+
+c_src = $(shell find src -type f -name "*.c")
+c_obj = $(subst src/,obj/,$(c_src:.c=.o))
+s_src = $(shell find src -type f -name "*.s")
+s_obj = $(subst src/,obj/,$(s_src:.s=.o))
+
+obj/%.o: src/%.s
+	@mkdir -p $(@D)
+	$(GCC) $(SFLAGS) -c $< -o $@
+
+obj/%.o: src/%.c
+	@mkdir -p $(@D)
+	$(GCC) $(CFLAGS) -c $< -o $@
+
+bin/$(FILENAME).elf: src/linker.ld $(c_obj) $(s_obj)
+	@:$(call check-defined,GCC,path to compiler binary)
+	$(GCC) -T src/linker.ld $(c_obj) $(s_obj) -o bin/$(FILENAME).elf $(CFLAGS)
+
+run: bin/$(FILENAME).elf
+	$(QEMU) -m $(MEMORY) -M $(MACHINE) -serial stdio --kernel bin/$(FILENAME).elf
+
+clean:
+	rm -rf obj/*
+clearlogs:
+	rm -rf log/*
+mrproper: clean clearlogs
+	rm -rf bin/*
+
+.PHONY: clean clearlogs mrproper
+
+check-defined = \
+	$(if $($1),, \
+	$(error Undefined variable: $1$(if $2, ($2))$(if $(value @), \
+		required by target `$@')))

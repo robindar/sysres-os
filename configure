@@ -1,0 +1,18 @@
+#!/bin/bash
+
+rm -f Makefile
+echo -e "### User-defined variables ###" > Makefile
+
+for i in "$@"; do
+  case $i in
+    --*=*)
+      arg="${i#--}"
+      var="${arg%=*}"
+      echo "${var^^} := ${arg#*=}" >> Makefile;;
+    *)
+      echo "Unknown option \"$arg\"" >&2;;
+  esac
+done
+
+echo -e "\n### DEFAULT MAKEFILE ###" >> Makefile
+cat Makefile.in >> Makefile
