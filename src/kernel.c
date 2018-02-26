@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include "libc/uart/uart.h"
 #include "libc/misc.h"
+#include "libc/debug/debug.h"
 
 #if defined(__cplusplus)
 extern "C" /* Use C linkage for kernel_main. */
@@ -14,6 +15,10 @@ void print_formatting_tests() {
 	uart_printf("\tShould output \"52\": %o\n", 42);
 	uart_printf("\tShould output \"-42\": %d\n", -42);
 	uart_printf("Done testing printf formatting\n");
+}
+
+void debug_test(){
+    assert(0);
 }
 
 void kernel_main(uint32_t r0, uint32_t r1, uint32_t atags)

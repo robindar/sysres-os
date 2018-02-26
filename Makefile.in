@@ -28,6 +28,9 @@ bin/$(FILENAME).elf: src/linker.ld $(c_obj) $(s_obj)
 
 run: bin/$(FILENAME).elf
 	$(QEMU) -m $(MEMORY) -M $(MACHINE) -serial stdio --kernel bin/$(FILENAME).elf
+	
+asm_dump: bin/$(FILENAME).elf
+	$(OBJDUMP) -D -marm bin/$(FILENAME).elf
 
 clean:
 	rm -rf obj/*
