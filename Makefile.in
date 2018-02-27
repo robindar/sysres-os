@@ -4,6 +4,7 @@ MEMORY   ?= 256
 MACHINE  ?= raspi2
 
 GCC      ?= $(shell which arm-none-eabi-gcc 2>/dev/null)
+OBJDUMP  ?= $(shell which arm-none-eabi-objdump 2>/dev/null)
 QEMU     ?= $(shell which qemu-system-arm 2>/dev/null)
 
 SFLAGS += -mcpu=$(MCPU) -fpic -ffreestanding
