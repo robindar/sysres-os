@@ -8,7 +8,10 @@ void delay(uint32_t count)
 }
 
 uint32_t get_cpu_id(){
+	/*
 	uint32_t res;
 	asm("MRC p15,0,%0,c0,c0,5 ;":"=r"(res)::);
 	return (res & 0xFF);
+	*/
+	return 0;
 }

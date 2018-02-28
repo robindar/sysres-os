@@ -15,38 +15,39 @@ _start:
 	mov sp, #0x8000
 
 	// Clear out bss.
-	ldr r4, =__bss_start
-	ldr r9, =__bss_end
-	mov r5, #0
-	mov r6, #0
-	mov r7, #0
-	mov r8, #0
+	ldr X4, =__bss_start
+	ldr X9, =__bss_end
+	mov X5, #0
+	mov X6, #0
+	mov X7, #0
+	mov X8, #0
 	b       2f
 
 1:
 	// store multiple at r4.
-	stmia r4!, {r5-r8}
+	stp X5, X6, [X4], #16
+	stp X7, X8, [X4], #16
 
 	// If we are still below bss_end, loop.
 2:
-	cmp r4, r9
+	cmp X4, X9
 	blo 1b
 
 	//Turn off cpu1,2,3
 	//Get cpu id in r3
-	mrc p15,0,r3,c0,c0,5
+	//mrc p15,0,r3,c0,c0,5
+	mrs X3, MPIDR_EL1
 	//Mask
-	and r3, r3, #0xFF
+	and X3, X3, #0xFF
 	//Compare
-  cmp r3, #0
+	cmp X3, #0
 	//Jump if non-zero
 	bne halt
 
-	// Call kernel_main
-	ldr r3, =kernel_main
-	blx r3
 
-	// halt
+	b kernel_main
+
+	//halt
 halt:
 	wfe
 	b halt
