@@ -3,9 +3,9 @@ MCPU     ?= cortex-a53
 MEMORY   ?= 256
 MACHINE  ?= raspi2
 
-GCC      ?= $(shell which arm-none-eabi-gcc 2>/dev/null)
-OBJDUMP  ?= $(shell which arm-none-eabi-objdump 2>/dev/null)
-QEMU     ?= $(shell which qemu-system-arm 2>/dev/null)
+GCC      ?= $(shell which aarch64-linux-gnu-gcc 2>/dev/null)
+OBJDUMP  ?= $(shell which aarch64-linux-gnu-objdump 2>/dev/null)
+QEMU     ?= $(shell which qemu-system-aarch64 2>/dev/null)
 
 SFLAGS += -mcpu=$(MCPU) -fpic -ffreestanding
 CFLAGS += -mcpu=$(MCPU) -fpic -ffreestanding -std=gnu99 -O2 -Wall -Wextra -nostdlib
@@ -17,10 +17,12 @@ s_obj = $(subst src/,obj/,$(s_src:.s=.o))
 
 obj/%.o: src/%.s
 	@mkdir -p $(@D)
+	@:$(call check-defined,GCC,path to compiler binary)
 	$(GCC) $(SFLAGS) -c $< -o $@
 
 obj/%.o: src/%.c
 	@mkdir -p $(@D)
+	@:$(call check-defined,GCC,path to compiler binary)
 	$(GCC) $(CFLAGS) -c $< -o $@
 
 bin/$(FILENAME).elf: src/linker.ld $(c_obj) $(s_obj)
