@@ -28,9 +28,11 @@ bin/$(FILENAME).elf: src/linker.ld $(c_obj) $(s_obj)
 	$(GCC) -T src/linker.ld $(c_obj) $(s_obj) -o bin/$(FILENAME).elf $(CFLAGS)
 
 run: bin/$(FILENAME).elf
+	@:$(call check-defined,QEMU,path to qemu executables)
 	$(QEMU) -m $(MEMORY) -M $(MACHINE) -serial stdio --kernel bin/$(FILENAME).elf
-	
+
 asm_dump: bin/$(FILENAME).elf
+	@:$(call check-defined,OBJDUMP,path to objdump binary)
 	$(OBJDUMP) -D -marm bin/$(FILENAME).elf
 
 clean:
