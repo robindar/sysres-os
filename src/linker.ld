@@ -3,40 +3,26 @@ ENTRY(_start)
 SECTIONS
 {
 	/* Starts at LOADER_ADDR. */
-	. = 0x8000;
+	. = 0x00100000;
 	__start = .;
-	__text_start = .;
-	.text :
+	.text ALIGN(0x1000) : AT(ADDR(.text) - 0x00000000)
 	{
 		KEEP(*(.text.boot))
 			*(.text)
+			*(.rodata)
 	}
-	. = ALIGN(4096); /* align to page size */
-	__text_end = .;
 
-	__rodata_start = .;
-	.rodata :
-	{
-		*(.rodata)
-	}
-	. = ALIGN(4096); /* align to page size */
-	__rodata_end = .;
-
-	__data_start = .;
-	.data :
+	.data ALIGN(0x1000) : AT(ADDR(.data) - 0x00000000)
 	{
 		*(.data)
 	}
-	. = ALIGN(4096); /* align to page size */
-	__data_end = .;
 
 	__bss_start = .;
-	.bss :
+	.bss : AT(ADDR(.bss) - 0x00000000)
 	{
 		bss = .;
 		*(.bss)
 	}
-	. = ALIGN(4096); /* align to page size */
 	__bss_end = .;
 	__end = .;
 }
