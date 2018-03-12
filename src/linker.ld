@@ -3,7 +3,7 @@ ENTRY(_start)
 SECTIONS
 {
 	/* Starts at LOADER_ADDR. */
-	. = 0x00100000;
+	. = 0x00008000;
 	__start = .;
 	.text ALIGN(0x1000) : AT(ADDR(.text) - 0x00000000)
 	{

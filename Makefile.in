@@ -5,6 +5,7 @@ MACHINE  ?= raspi3
 
 GCC      ?= $(shell which aarch64-linux-gnu-gcc 2>/dev/null)
 OBJDUMP  ?= $(shell which aarch64-linux-gnu-objdump 2>/dev/null)
+OBJCOPY  ?= $(shell which aarch64-linux-gnu-objcopy 2>/dev/null)
 QEMU     ?= $(shell which qemu-system-aarch64 2>/dev/null)
 
 SFLAGS += -mcpu=$(MCPU) -fpic -ffreestanding
@@ -35,6 +36,10 @@ obj/%.o: src/%.S
 bin/$(FILENAME).elf: src/linker.ld $(c_obj) $(s_obj)
 	@:$(call check-defined,GCC,path to compiler binary)
 	$(GCC) -T src/linker.ld $(c_obj) $(s_obj) -o bin/$(FILENAME).elf $(CFLAGS)
+
+bin/$(FILENAME).img: bin/$(FILENAME).elf
+	@:$(call check-defined,OBJCOPY,path to objcopy binary)
+	$(OBJCOPY) $< -O binary $@
 
 run: bin/$(FILENAME).elf
 	@:$(call check-defined,QEMU,path to qemu executables)
