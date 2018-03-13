@@ -3,9 +3,7 @@ MCPU     ?= cortex-a53
 MEMORY   ?= 256
 MACHINE  ?= raspi3
 
-GCC      ?= $(shell which aarch64-linux-gnu-gcc 2>/dev/null)
-OBJDUMP  ?= $(shell which aarch64-linux-gnu-objdump 2>/dev/null)
-OBJCOPY  ?= $(shell which aarch64-linux-gnu-objcopy 2>/dev/null)
+ARMTOOLCHAIN ?= aarch64-linux-gnu
 QEMU     ?= $(shell which qemu-system-aarch64 2>/dev/null)
 
 SFLAGS += -mcpu=$(MCPU) -fpic -ffreestanding
@@ -20,34 +18,43 @@ S_obj = $(subst src/,obj/,$(s_src:.S=.o))
 
 obj/%.o: src/%.s
 	@mkdir -p $(@D)
-	@:$(call check-defined,GCC,path to compiler binary)
-	$(GCC) $(SFLAGS) -c $< -o $@
+	@:$(call check-defined,ARMTOOLCHAIN,path to ARM toolchain)
+	$(ARMTOOLCHAIN)-as -c $< -o $@
 
 obj/%.o: src/%.c
 	@mkdir -p $(@D)
-	@:$(call check-defined,GCC,path to compiler binary)
-	$(GCC) $(CFLAGS) -c $< -o $@
+	@:$(call check-defined,ARMTOOLCHAIN,path to ARM toolchain)
+	$(ARMTOOLCHAIN)-gcc $(CFLAGS) -c $< -o $@
 
 obj/%.o: src/%.S
 	@mkdir -p $(@D)
-	@:$(call check-defined,GCC,path to compiler binary)
-	$(GCC) $(SFLAGS) -c $< -o $@
+	@:$(call check-defined,ARMTOOLCHAIN,path to ARM toolchain)
+	$(ARMTOOLCHAIN)-as -c $< -o $@
 
 bin/$(FILENAME).elf: src/linker.ld $(c_obj) $(s_obj)
-	@:$(call check-defined,GCC,path to compiler binary)
-	$(GCC) -T src/linker.ld $(c_obj) $(s_obj) -o bin/$(FILENAME).elf $(CFLAGS)
+	@:$(call check-defined,ARMTOOLCHAIN,path to ARM toolchain)
+	$(ARMTOOLCHAIN)-ld -T src/linker.ld $(c_obj) $(s_obj) -o bin/$(FILENAME).elf
 
 bin/$(FILENAME).img: bin/$(FILENAME).elf
-	@:$(call check-defined,OBJCOPY,path to objcopy binary)
-	$(OBJCOPY) $< -O binary $@
+	@:$(call check-defined,ARMTOOLCHAIN,path to ARM toolchain)
+	$(ARMTOOLCHAIN)-objcopy $< -O binary $@
 
 run: bin/$(FILENAME).elf
 	@:$(call check-defined,QEMU,path to qemu executables)
-	$(QEMU) -m $(MEMORY) -M $(MACHINE) -serial stdio --kernel bin/$(FILENAME).elf
+	$(QEMU) -m $(MEMORY) -M $(MACHINE) -serial mon:stdio --kernel bin/$(FILENAME).elf
+
+gdb: bin/$(FILENAME).elf
+	@:$(call check-defined,QEMU,path to qemu executables)
+	$(QEMU) -s -S -m $(MEMORY) -M $(MACHINE) -serial mon:stdio --kernel bin/$(FILENAME).elf
 
 asm_dump: bin/$(FILENAME).elf
-	@:$(call check-defined,OBJDUMP,path to objdump binary)
-	$(OBJDUMP) -D -marm bin/$(FILENAME).elf
+	@:$(call check-defined,ARMTOOLCHAIN,path to ARM toolchain)
+	$(ARMTOOLCHAIN)-objdump -D -marm bin/$(FILENAME).elf
+
+deploy: bin/$(FILENAME).img
+	sudo mount /dev/mmcblk0p1 /mnt/sd
+	sudo cp bin/$(FILENAME).img /mnt/sd/kernel7.img
+	sudo umount /mnt/sd
 
 clean:
 	rm -rf obj/*
