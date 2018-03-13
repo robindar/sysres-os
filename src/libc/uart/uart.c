@@ -116,13 +116,14 @@ int uart_put_uint(unsigned int x, unsigned int base, bool upper_hexa){
 	return written + 1;
 }
 
-int uart_put_int(int x, unsigned int base, bool upper_hexa){
+
+int uart_put_int(int x, unsigned int base, bool unsign, bool upper_hexa){
 	int written = 0;
 	if(x == 0) {
 		uart_putc('0');
 		written ++;
 	}
-	else if (x < 0){
+	else if (x < 0 && !unsign){
 		uart_putc('-');
 		written += 1 + uart_put_uint(1 + ~x, base, upper_hexa);
 	}
@@ -151,19 +152,22 @@ int uart_printf(const char* format,...){
 					uart_putc('%');
 					break;
 				case 'd':
-					written += uart_put_int(va_arg(adpar, int), 10, 0);
+					written += uart_put_int(va_arg(adpar, int), 10, 0, 0);
 					break;
 				case 'X':
-					written += uart_put_int(va_arg(adpar, int), 16, 1);
+					written += uart_put_int(va_arg(adpar, int), 16, 0, 1);
 					break;
 				case 'o':
-					written += uart_put_int(va_arg(adpar, unsigned int), 8, 0);
+					written += uart_put_int(va_arg(adpar, unsigned int), 8, 1, 0);
 					break;
 				case 'u':
-					written += uart_put_int(va_arg(adpar, unsigned int), 10, 0);
+					written += uart_put_int(va_arg(adpar, unsigned int), 10, 1, 0);
 					break;
 				case 'x':
-					written += uart_put_int(va_arg(adpar, unsigned int), 16, 0);
+					written += uart_put_int(va_arg(adpar, unsigned int), 16, 1, 0);
+					break;
+				case 'b':
+					written += uart_put_int(va_arg(adpar, unsigned int), 2, 1, 0);
 					break;
 				case 'c':
 					uart_putc(va_arg(adpar,unsigned int));
@@ -181,4 +185,9 @@ int uart_printf(const char* format,...){
 		i ++;
 	}
 	return written;
+}
+
+
+void uart_simple_put_reg(uint64_t reg){
+	uart_printf("Reg : 0x%x\n",reg);
 }
