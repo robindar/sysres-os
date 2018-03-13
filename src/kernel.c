@@ -9,12 +9,12 @@ extern "C" /* Use C linkage for kernel_main. */
 #endif
 
 void print_formatting_tests() {
-	uart_printf("\nPerforming printf formatting tests:\n");
-	uart_printf("\tShould output \"hey\": %s\n", "hey");
-	uart_printf("\tShould output \"2a\": %x\n", 42);
-	uart_printf("\tShould output \"52\": %o\n", 42);
-	uart_printf("\tShould output \"-42\": %d\n", -42);
-	uart_printf("Done testing printf formatting\n");
+	uart_printf("\r\nPerforming printf formatting tests:\r\n");
+	uart_printf("\tShould output \"hey\": %s\r\n", "hey");
+	uart_printf("\tShould output \"2a\": %x\r\n", 42);
+	uart_printf("\tShould output \"52\": %o\r\n", 42);
+	uart_printf("\tShould output \"-42\": %d\r\n", -42);
+	uart_printf("Done testing printf formatting\r\n");
 }
 
 void debug_test(){
@@ -29,7 +29,7 @@ void kernel_main(uint32_t r0, uint32_t r1, uint32_t atags)
 	(void) atags;
 
 	uart_init();
-	uart_printf("Performed kernel initialization\n");
+	uart_printf("Performed kernel initialization\r\n");
 	print_formatting_tests();
 
 	while (1){
