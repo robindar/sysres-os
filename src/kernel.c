@@ -36,13 +36,14 @@ void kernel_main(uint64_t r0, uint64_t r1, uint64_t atags)
 	(void) atags;
 
 	uart_init();
+	uart_info("Performed kernel initialization\r\n");
+	print_formatting_tests();
+
 	//uint64_t variable = 0;
 	//asm volatile("ADR %0, ." : "=r"(variable) : :);
 	//uart_printf("address is : %x\r\n", variable);
-	print_reg(VBAR_EL1);
+	print_reg(ID_AA64MMFR1_EL1);
 
-	uart_info("Performed kernel initialization\r\n");
-	print_formatting_tests();
 	syscall_test();
 
 	while (1){
