@@ -1,5 +1,7 @@
 .global c_el2_handler
 .section ".text.el2"
+.globl Vector_table_el2
+.balign 0x800
 Vector_table_el2:
 curr_el_sp0_sync:
         bl c_el2_handler

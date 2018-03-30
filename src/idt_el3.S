@@ -3,6 +3,8 @@
 .global c_fiq_handler
 .global c_sync_handler
 .section ".text.el3"
+.globl Vector_table_el3
+.balign 0x800
 Vector_table_el3:
 curr_el_sp0_sync:
         stp x0, x1,  [sp, #-16]!
@@ -60,6 +62,7 @@ curr_el_sp0_serror:
         bl el3_serror_handler
 
 .balign 0x80
+.globl curr_el_spx_sync
 curr_el_spx_sync:
         stp x0, x1,  [sp, #-16]!
         stp x2, x3,  [sp, #-16]!

@@ -48,20 +48,37 @@ _start:
 	bne halt
 
 	//Tell the system where the Interrupt Tables are
-	ldr X3, =__el1_start
+	ldr X3, =Vector_table_el1
 	msr VBAR_EL1, X3
-	ldr X3, =__el2_start
+	ldr X3, =Vector_table_el2
 	msr VBAR_EL2, X3
-	ldr X3, =__el3_start
+	ldr X3, =Vector_table_el3
 	msr VBAR_EL3, X3
 
 	//Switch from EL3 (secure) to EL1 (kernel)
 	bl switch_from_EL3_to_EL1
 	//Set up stack again
 	mov sp, #0x8000
+
+	// Enable MMU
+	//msr TTBR0_EL1, X0 // Set TTBR0
+	//msr TTBR1_EL1, X1 // Set TTBR1
+	//msr TCR_El1, X2   // Set TCR
+	// Instruction Synchronization Barrier:
+	//  forces the previous changes to be seen
+	//  before enabling the MMU
+	//isb
+
+	//mrs X0, SCTLR_EL1 // Read  System Control Register configuration data
+	//orr X0, X0, #1    // Set [M] bit and enable the MMU
+	//msr SCTLR_EL1, X0 // Write System Control Register configuration data
+	//isb
+
+	mov X0, #0
 	b kernel_main
 
 	//halt
+.globl halt
 halt:
 	wfe
 	b halt

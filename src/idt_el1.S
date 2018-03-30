@@ -4,6 +4,8 @@
 .global c_sync_handler
 .global c_el1_svc_aarch64_handler
 .section ".text.el1"
+.globl Vector_table_el1
+.balign 0x800
 Vector_table_el1:
 curr_el_sp0_sync:
         stp x0, x1,  [sp, #-16]!
@@ -239,7 +241,7 @@ el1_sync_handler:
         mov x1, x8
         mov x2, x9
         mov x3, x10
-        mov x4, x11
+        mrs x4, esr_el1
         mrs x5, far_el1
         bl c_sync_handler
         ldp x2, x3, [sp], #16
