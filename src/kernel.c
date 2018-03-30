@@ -3,6 +3,7 @@
 #include "libc/uart/uart.h"
 #include "libc/misc.h"
 #include "libc/debug/debug.h"
+#include "interrupt.h"
 
 #if defined(__cplusplus)
 extern "C" /* Use C linkage for kernel_main. */
@@ -12,6 +13,7 @@ void print_formatting_tests() {
 	uart_printf("\r\nPerforming printf formatting tests:\r\n");
 	uart_printf("\tShould output \"hey\": %s\r\n", "hey");
 	uart_printf("\tShould output \"2a\": %x\r\n", 42);
+	uart_printf("\tShould output \"101010\": %b\r\n", 42);
 	uart_printf("\tShould output \"52\": %o\r\n", 42);
 	uart_printf("\tShould output \"-42\": %d\r\n", -42);
 	uart_printf("Done testing printf formatting\r\n");
@@ -34,9 +36,14 @@ void kernel_main(uint64_t r0, uint64_t r1, uint64_t atags)
 	(void) atags;
 
 	uart_init();
+	//uint64_t variable = 0;
+	//asm volatile("ADR %0, ." : "=r"(variable) : :);
+	//uart_printf("address is : %x\r\n", variable);
+	print_reg(VBAR_EL1);
+
 	uart_printf("Performed kernel initialization\r\n");
 	print_formatting_tests();
-        syscall_test();
+	syscall_test();
 
 	while (1){
 		uart_putc(uart_getc());
