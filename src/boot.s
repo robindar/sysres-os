@@ -4,6 +4,9 @@
 // Make _start global.
 .globl _start
 
+ //Exception level switch : from secure to kernel mode
+.globl switch_from_EL3_to_EL1
+
 // Entry point for the kernel.
 // r15 -> should begin execution at 0x8000.
 // r0 -> 0x00000000
@@ -44,7 +47,18 @@ _start:
 	//Jump if non-zero
 	bne halt
 
+	//Tell the system where the Interrupt Tables are
+	ldr X3, =__el1_start
+	msr VBAR_EL1, X3
+	ldr X3, =__el2_start
+	msr VBAR_EL2, X3
+	ldr X3, =__el3_start
+	msr VBAR_EL3, X3
 
+	//Switch from EL3 (secure) to EL1 (kernel)
+	bl switch_from_EL3_to_EL1
+	//Set up stack again
+	mov sp, #0x8000
 	b kernel_main
 
 	//halt

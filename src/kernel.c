@@ -21,7 +21,12 @@ void debug_test(){
     assert(0);
 }
 
-void kernel_main(uint32_t r0, uint32_t r1, uint32_t atags)
+
+void syscall_test(){
+    asm volatile ("svc #0x1"::);
+}
+
+void kernel_main(uint64_t r0, uint64_t r1, uint64_t atags)
 {
 	// Declare as unused
 	(void) r0;
@@ -31,6 +36,7 @@ void kernel_main(uint32_t r0, uint32_t r1, uint32_t atags)
 	uart_init();
 	uart_printf("Performed kernel initialization\r\n");
 	print_formatting_tests();
+        syscall_test();
 
 	while (1){
 		uart_putc(uart_getc());

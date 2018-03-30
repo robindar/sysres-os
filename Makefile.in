@@ -7,19 +7,20 @@ ARMTOOLCHAIN ?= aarch64-linux-gnu
 QEMU     ?= $(shell which qemu-system-aarch64 2>/dev/null)
 
 SFLAGS += -mcpu=$(MCPU) -fpic -ffreestanding
-CFLAGS += -mcpu=$(MCPU) -fpic -ffreestanding -std=gnu99 -O2 -Wall -Wextra -nostdlib
+CFLAGS += -mcpu=$(MCPU) -fpic -ffreestanding -std=gnu99 -O2 -Wall -Wextra -nostdlib -g
+ASFLAGS += -g
 
 c_src = $(shell find src -type f -name "*.c")
 c_obj = $(subst src/,obj/,$(c_src:.c=.o))
 s_src = $(shell find src -type f -name "*.s")
 S_src = $(shell find src -type f -name "*.S")
 s_obj = $(subst src/,obj/,$(s_src:.s=.o))
-S_obj = $(subst src/,obj/,$(s_src:.S=.o))
+S_obj = $(subst src/,obj/,$(S_src:.S=.o))
 
 obj/%.o: src/%.s
 	@mkdir -p $(@D)
 	@:$(call check-defined,ARMTOOLCHAIN,path to ARM toolchain)
-	$(ARMTOOLCHAIN)-as -c $< -o $@
+	$(ARMTOOLCHAIN)-as $(ASFLAGS) -c $< -o $@
 
 obj/%.o: src/%.c
 	@mkdir -p $(@D)
@@ -29,11 +30,11 @@ obj/%.o: src/%.c
 obj/%.o: src/%.S
 	@mkdir -p $(@D)
 	@:$(call check-defined,ARMTOOLCHAIN,path to ARM toolchain)
-	$(ARMTOOLCHAIN)-as -c $< -o $@
+	$(ARMTOOLCHAIN)-as $(ASFLAGS) -c $< -o $@
 
-bin/$(FILENAME).elf: src/linker.ld $(c_obj) $(s_obj)
+bin/$(FILENAME).elf: src/linker.ld $(c_obj) $(s_obj) $(S_obj)
 	@:$(call check-defined,ARMTOOLCHAIN,path to ARM toolchain)
-	$(ARMTOOLCHAIN)-ld -T src/linker.ld $(c_obj) $(s_obj) -o bin/$(FILENAME).elf
+	$(ARMTOOLCHAIN)-ld -T src/linker.ld $(c_obj) $(s_obj) $(S_obj) -o bin/$(FILENAME).elf
 
 bin/$(FILENAME).img: bin/$(FILENAME).elf
 	@:$(call check-defined,ARMTOOLCHAIN,path to ARM toolchain)
