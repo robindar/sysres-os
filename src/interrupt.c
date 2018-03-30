@@ -9,8 +9,8 @@ void display_esr_eln_info(uint64_t esr_eln){
     bool il = (esr_eln & 0x2000000) >> 25;
     uint16_t instr_specific_syndrom = (esr_eln & 0x1fffff);
     uart_printf(
-        "ER_ELn info :\nException Class : %d\nIL : %d\n"
-         "Instruction Specific Syndrom : 0x%x\n",
+        "ER_ELn info :\r\nException Class : 0b%b\r\nIL : %d\r\n"
+         "Instruction Specific Syndrom : 0x%x\r\n",
         exception_class, il, instr_specific_syndrom);
 }
 
@@ -27,26 +27,26 @@ void display_pstate_info(uint64_t pstate){
     bool f  = (pstate & (1 <<  6)) >>  6;
     int  m  = (pstate &    0x10  )      ;
     uart_printf(
-        "PSTATE info :\n"
-        "Negative condition flag : %d\n"
-        "Zero     condition flag : %d\n"
-        "Carry    condition flag : %d\n"
-        "Overflow condition flag : %d\n"
-        "Debug mask              : %d\n"
-        "System Error mask       : %d\n"
-        "IRQ mask                : %d\n"
-        "FIQ mask                : %d\n"
-        "Software step           : %d\n"
-        "Illegal execution state : %d\n"
-        "Mode field              : %d\n"
+        "PSTATE info :\r\n"
+        "Negative condition flag : %d\r\n"
+        "Zero     condition flag : %d\r\n"
+        "Carry    condition flag : %d\r\n"
+        "Overflow condition flag : %d\r\n"
+        "Debug mask              : %d\r\n"
+        "System Error mask       : %d\r\n"
+        "IRQ mask                : %d\r\n"
+        "FIQ mask                : %d\r\n"
+        "Software step           : %d\r\n"
+        "Illegal execution state : %d\r\n"
+        "Mode field              : %d\r\n"
                 , n,z,c,v,d,a,i,f,ss,il,m);
 }
 
 void c_sync_handler(uint64_t el, uint64_t nb, uint64_t spsr_el, uint64_t elr_el, uint64_t esr_el, uint64_t far_el){
     /* el indicates exception level */
     uart_printf(
-        "Sync Interruption :\nAt level : EL%d\nCase nb :%d\n"
-        "ELR_EL : 0x%x\nSPSR_EL : 0x%x\nESR_EL : 0x%x\nFAR_EL : 0x%x\n",
+        "Sync Interruption :\r\nAt level : EL%d\r\nCase nb :%d\r\n"
+        "ELR_EL : 0x%x\r\nSPSR_EL : 0x%x\r\nESR_EL : 0x%x\r\nFAR_EL : 0x%x\r\n",
         el,nb, elr_el, spsr_el, esr_el, far_el);
     display_esr_eln_info(esr_el);
     display_pstate_info(elr_el);
@@ -55,8 +55,8 @@ void c_sync_handler(uint64_t el, uint64_t nb, uint64_t spsr_el, uint64_t elr_el,
 
 void c_serror_handler(uint64_t el, uint64_t nb, uint64_t elr_el, uint64_t spsr_el, uint64_t esr_el, uint64_t far_el){
     uart_printf(
-        " System Error :\nAt level : EL%d\nCase nb :%d\n"
-        "ELR_EL = 0x%x\nSPSR_EL = 0x%x\nESR_EL = 0x%x\nFAR_EL = 0x%x\n",
+        " System Error :\r\nAt level : EL%d\r\nCase nb :%d\r\n"
+        "ELR_EL = 0x%x\r\nSPSR_EL = 0x%x\r\nESR_EL = 0x%x\r\nFAR_EL = 0x%x\r\n",
         el, nb, elr_el, spsr_el, esr_el, far_el);
     display_esr_eln_info(esr_el);
     display_pstate_info(elr_el);
@@ -66,20 +66,20 @@ void c_serror_handler(uint64_t el, uint64_t nb, uint64_t elr_el, uint64_t spsr_e
 /* TODO : get back info on the interrupt from GIC */
 void c_irq_handler(uint64_t el, uint64_t nb){
     uart_printf(
-        " IRQ :\nAt level : EL%d\nCase nb :%d\n",
+        " IRQ :\r\nAt level : EL%d\r\nCase nb :%d\r\n",
         el, nb);
     abort();
 }
 
 void c_fiq_handler(uint64_t el, uint64_t nb){
     uart_printf(
-        " FIQ :\nAt level : EL%d\nCase nb :%d\n",
+        " FIQ :\r\nAt level : EL%d\r\nCase nb :%d\r\n",
         el,nb);
     abort();
 }
 
 void c_el2_handler(){
-    uart_printf("Interrupt handled at EL2 : non supported\nAborting...\n");
+    uart_printf("Interrupt handled at EL2 : non supported\r\nAborting...\r\n");
     abort();
 }
 
@@ -99,9 +99,9 @@ void c_el1_svc_aarch64_handler(uint64_t x0,uint64_t x1,uint64_t x2,uint64_t x3,
     uint16_t syscall = (esr_el1 & 0x1ffffff); //get back syscall code
     switch(syscall){
         default:
-            uart_printf("Error no syscall SVC Aarch64 corresponding to code %d\n", syscall);
+            uart_printf("Error no syscall SVC Aarch64 corresponding to code %d\r\n", syscall);
             display_esr_eln_info(esr_el1);
-            uart_printf("Aborting...\n");
+            uart_printf("Aborting...\r\n");
             abort();
     }
 }

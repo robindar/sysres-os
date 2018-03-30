@@ -16,7 +16,7 @@ switch_from_EL3_to_EL1:
 
         //Set state
         mov x3, xzr
-        //Default : all execptions are not masked
+        //Default : all exceptions are not masked
         //We mask them for debugging purposes first
         orr x3, x3, #(1 << 6)
         orr x3, x3, #(1 << 7)
