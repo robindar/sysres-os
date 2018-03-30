@@ -19,13 +19,16 @@ void display_pstate_info(uint64_t pstate){
     bool z  = (pstate & (1 << 30)) >> 30;
     bool c  = (pstate & (1 << 29)) >> 29;
     bool v  = (pstate & (1 << 28)) >> 28;
+    bool ua = (pstate & (1 << 23)) >> 23;
     bool ss = (pstate & (1 << 21)) >> 21;
-    bool il = (pstate & (1 << 23)) >> 23;
+    bool il = (pstate & (1 << 20)) >> 20;
     bool d  = (pstate & (1 <<  9)) >>  9;
     bool a  = (pstate & (1 <<  8)) >>  8;
     bool i  = (pstate & (1 <<  7)) >>  7;
     bool f  = (pstate & (1 <<  6)) >>  6;
-    int  m  = (pstate &    0x10  )      ;
+    bool ar = (pstate & (1 <<  5)) >>  5;
+    int  m  = (pstate & (3 <<  2)) >>  2;
+    bool sp = (pstate & 1);
     uart_printf(
         "PSTATE info :\r\n"
         "Negative condition flag : %d\r\n"
@@ -37,9 +40,12 @@ void display_pstate_info(uint64_t pstate){
         "IRQ mask                : %d\r\n"
         "FIQ mask                : %d\r\n"
         "Software step           : %d\r\n"
+        "UA0                     : %d\r\n"
         "Illegal execution state : %d\r\n"
-        "Mode field              : %d\r\n"
-                , n,z,c,v,d,a,i,f,ss,il,m);
+        "Architecture            : %d\r\n"
+        "Mode field              : EL%d\r\n"
+        "Stack Pointer           : %d\r\n"
+                , n,z,c,v,d,a,i,f,ss,ua,il,ar,m,sp);
 }
 
 void c_sync_handler(uint64_t el, uint64_t nb, uint64_t spsr_el, uint64_t elr_el, uint64_t esr_el, uint64_t far_el){
