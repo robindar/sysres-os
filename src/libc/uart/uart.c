@@ -240,18 +240,16 @@ int uart_put_int(int x, unsigned int base, bool unsign, bool upper_hexa){
 	return written;
 }
 
-
-/* uart_printf :
- * Aims at mimicking the behaviour of the C printf but for GPIO
- * Doesn't yet support all the options : for now only conversion flags :
- * d,o,u,x,X,c,s,%*/
-int uart_printf(const char* format,...){
-	va_list adpar;
-	va_start(adpar, format);
-	int written = 0;
+/* internal_uart_printf */
+/* the last argument indicates whther or not there is a label */
+int internal_uart_printf(const char* format, va_list adpar, int label){
+    int written = 0;
 	int i = 0;
 	while(format[i]){
-		if(format[i] != '%') {
+                if(format[i] == '\n' && format[i+1] != NULL && label) {
+                    written += uart_puts("\n\t  ");
+                }
+		else if(format[i] != '%') {
 			uart_putc(format[i]);
 			written ++;
 		}
@@ -293,9 +291,61 @@ int uart_printf(const char* format,...){
 		}
 		i ++;
 	}
-	return written;
+        return written;
 }
 
+/* uart_printf :
+ * Aims at mimicking the behaviour of the C printf but for GPIO
+ * Doesn't yet support all the options : for now only conversion flags :
+ * d,o,u,x,X,c,s,b%*/
+int uart_printf(const char* format,...){
+	va_list adpar;
+	va_start(adpar, format);
+	int written = internal_uart_printf(format, adpar, 0);
+        va_end(adpar);
+	return written;
+}
+/* The return value is the number of char written, including the label */
+int uart_verbose(const char* format,...){
+	va_list adpar;
+	va_start(adpar, format);
+        uart_puts("[VERBOSE] ");
+	int written = internal_uart_printf(format, adpar, 1);
+        va_end(adpar);
+	return written;
+}
+int uart_debug(const char* format,...){
+	va_list adpar;
+	va_start(adpar, format);
+        uart_puts("[ DEBUG ] ");
+	int written = internal_uart_printf(format, adpar, 1);
+        va_end(adpar);
+	return written;
+}
+int uart_info(const char* format,...){
+	va_list adpar;
+	va_start(adpar, format);
+        uart_puts("[ INFO  ] ");
+	int written = internal_uart_printf(format, adpar, 1);
+        va_end(adpar);
+	return written;
+}
+int uart_warning(const char* format,...){
+	va_list adpar;
+	va_start(adpar, format);
+        uart_puts("[WARNING] ");
+	int written = internal_uart_printf(format, adpar, 1);
+        va_end(adpar);
+	return written;
+}
+int uart_error(const char* format,...){
+	va_list adpar;
+	va_start(adpar, format);
+        uart_puts("[ ERROR ] ");
+	int written = internal_uart_printf(format, adpar, 1);
+        va_end(adpar);
+	return written;
+}
 
 void uart_simple_put_reg(uint64_t reg){
 	uart_printf("Reg : 0x%x\n",reg);

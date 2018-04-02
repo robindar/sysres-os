@@ -10,13 +10,13 @@ extern "C" /* Use C linkage for kernel_main. */
 #endif
 
 void print_formatting_tests() {
-	uart_printf("\r\nPerforming printf formatting tests:\r\n");
-	uart_printf("\tShould output \"hey\": %s\r\n", "hey");
-	uart_printf("\tShould output \"2a\": %x\r\n", 42);
-	uart_printf("\tShould output \"101010\": %b\r\n", 42);
-	uart_printf("\tShould output \"52\": %o\r\n", 42);
-	uart_printf("\tShould output \"-42\": %d\r\n", -42);
-	uart_printf("Done testing printf formatting\r\n");
+	uart_info("Performing printf formatting tests:\r\n");
+	uart_info("\tShould output \"hey\": %s\r\n", "hey");
+	uart_info("\tShould output \"2a\": %x\r\n", 42);
+	uart_info("\tShould output \"101010\": %b\r\n", 42);
+	uart_info("\tShould output \"52\": %o\r\n", 42);
+	uart_info("\tShould output \"-42\": %d\r\n", -42);
+	uart_info("Done testing printf formatting\r\n");
 }
 
 void debug_test(){
@@ -41,7 +41,7 @@ void kernel_main(uint64_t r0, uint64_t r1, uint64_t atags)
 	//uart_printf("address is : %x\r\n", variable);
 	print_reg(VBAR_EL1);
 
-	uart_printf("Performed kernel initialization\r\n");
+	uart_info("Performed kernel initialization\r\n");
 	print_formatting_tests();
 	syscall_test();
 

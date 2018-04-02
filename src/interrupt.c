@@ -8,7 +8,7 @@ void display_esr_eln_info(uint64_t esr_eln){
     uint64_t exception_class = (esr_eln & 0xfc000000) >> 26;
     bool il = (esr_eln & 0x2000000) >> 25;
     uint16_t instr_specific_syndrom = (esr_eln & 0x1fffff);
-    uart_printf(
+    uart_info(
         "ER_ELn info :\r\nException Class : 0b%b\r\nIL : %d\r\n"
          "Instruction Specific Syndrom : 0x%x\r\n",
         exception_class, il, instr_specific_syndrom);
@@ -29,7 +29,7 @@ void display_pstate_info(uint64_t pstate){
     bool ar = (pstate & (1 <<  5)) >>  5;
     int  m  = (pstate & (3 <<  2)) >>  2;
     bool sp = (pstate & 1);
-    uart_printf(
+    uart_info(
         "PSTATE info :\r\n"
         "Negative condition flag : %d\r\n"
         "Zero     condition flag : %d\r\n"
@@ -50,7 +50,7 @@ void display_pstate_info(uint64_t pstate){
 
 void c_sync_handler(uint64_t el, uint64_t nb, uint64_t spsr_el, uint64_t elr_el, uint64_t esr_el, uint64_t far_el){
     /* el indicates exception level */
-    uart_printf(
+    uart_error(
         "Sync Interruption :\r\nAt level : EL%d\r\nCase nb :%d\r\n"
         "ELR_EL : 0x%x\r\nSPSR_EL : 0x%x\r\nESR_EL : 0x%x\r\nFAR_EL : 0x%x\r\n",
         el,nb, elr_el, spsr_el, esr_el, far_el);
@@ -60,7 +60,7 @@ void c_sync_handler(uint64_t el, uint64_t nb, uint64_t spsr_el, uint64_t elr_el,
 }
 
 void c_serror_handler(uint64_t el, uint64_t nb, uint64_t elr_el, uint64_t spsr_el, uint64_t esr_el, uint64_t far_el){
-    uart_printf(
+    uart_error(
         " System Error :\r\nAt level : EL%d\r\nCase nb :%d\r\n"
         "ELR_EL = 0x%x\r\nSPSR_EL = 0x%x\r\nESR_EL = 0x%x\r\nFAR_EL = 0x%x\r\n",
         el, nb, elr_el, spsr_el, esr_el, far_el);
@@ -71,21 +71,21 @@ void c_serror_handler(uint64_t el, uint64_t nb, uint64_t elr_el, uint64_t spsr_e
 
 /* TODO : get back info on the interrupt from GIC */
 void c_irq_handler(uint64_t el, uint64_t nb){
-    uart_printf(
+    uart_error(
         " IRQ :\r\nAt level : EL%d\r\nCase nb :%d\r\n",
         el, nb);
     abort();
 }
 
 void c_fiq_handler(uint64_t el, uint64_t nb){
-    uart_printf(
+    uart_error(
         " FIQ :\r\nAt level : EL%d\r\nCase nb :%d\r\n",
         el,nb);
     abort();
 }
 
 void c_el2_handler(){
-    uart_printf("Interrupt handled at EL2 : non supported\r\nAborting...\r\n");
+    uart_error("Interrupt handled at EL2 : non supported\r\nAborting...\r\n");
     abort();
 }
 
@@ -105,9 +105,9 @@ void c_el1_svc_aarch64_handler(uint64_t x0,uint64_t x1,uint64_t x2,uint64_t x3,
     uint16_t syscall = (esr_el1 & 0x1ffffff); //get back syscall code
     switch(syscall){
         default:
-            uart_printf("Error no syscall SVC Aarch64 corresponding to code %d\r\n", syscall);
+            uart_error("Error no syscall SVC Aarch64 corresponding to code %d\r\n", syscall);
             display_esr_eln_info(esr_el1);
-            uart_printf("Aborting...\r\n");
+            uart_error("Aborting...\r\n");
             abort();
     }
 }
