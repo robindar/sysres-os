@@ -52,12 +52,19 @@ asm_dump: bin/$(FILENAME).elf
 	@:$(call check-defined,ARMTOOLCHAIN,path to ARM toolchain)
 	$(ARMTOOLCHAIN)-objdump -D -marm bin/$(FILENAME).elf
 
-deploy: CFLAGSADD = -DHARDWARE
-deploy: clean bin/$(FILENAME).img
-	sudo mount /dev/mmcblk0p1 /mnt/sd
+_deploy: CFLAGSADD = -DHARDWARE
+_deploy: clean bin/$(FILENAME).img
 	sudo cp bin/$(FILENAME).img /mnt/sd/kernel7.img
+
+deploy:
+	sudo mount /dev/mmcblk0p1 /mnt/sd
+	make _deploy
 	sudo umount /mnt/sd
 
+weploy: _deploy
+
+connect:
+	sudo screen /dev/ttyUSB0 115200
 clean:
 	rm -rf obj/*
 clearlogs:
