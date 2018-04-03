@@ -16,6 +16,8 @@ void print_formatting_tests() {
 	uart_info("\tShould output \"101010\": %b\r\n", 42);
 	uart_info("\tShould output \"52\": %o\r\n", 42);
 	uart_info("\tShould output \"-42\": %d\r\n", -42);
+	uart_info("\tShould output 2 ** 32 + 1: %b\r\n", (((uint64_t) 1) << 32) + 1);
+	uart_info("\tShould output \"100000001\": %x\r\n", (((uint64_t) 1) << 32) + 1);
 	uart_info("Done testing printf formatting\r\n");
 }
 

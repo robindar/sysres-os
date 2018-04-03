@@ -213,20 +213,20 @@ int uart_puts(const char* str)
 }
 
 /* Generic function for printing an integer, warning displays nothing for 0 */
-int uart_put_uint(unsigned int x, unsigned int base, bool upper_hexa){
+int uart_put_uint(uint64_t x, unsigned int base, bool upper_hexa){
 	if(x == 0) {
 		return 0;
 	}
-	int y = x % base;
+	uint64_t y = x % base;
 	int written = uart_put_uint(x/base, base, upper_hexa);
-	if(y >= 0 && y <= 9) uart_putc(48 + y);
+	if(y <= 9) uart_putc(48 + y);
 	else if(upper_hexa) uart_putc(55 + y);
 	else uart_putc(87 + y);
 	return written + 1;
 }
 
 
-int uart_put_int(int x, unsigned int base, bool unsign, bool upper_hexa){
+int uart_put_int(int64_t x, unsigned int base, bool unsign, bool upper_hexa){
 	int written = 0;
 	if(x == 0) {
 		uart_putc('0');
@@ -246,7 +246,7 @@ int internal_uart_printf(const char* format, va_list adpar, int label){
     int written = 0;
 	int i = 0;
 	while(format[i]){
-                if(format[i] == '\n' && format[i+1] != NULL && label) {
+                if(format[i] == '\n' && format[i+1] != '\0' && label) {
                     written += uart_puts("\n\t  ");
                 }
 		else if(format[i] != '%') {
@@ -265,16 +265,16 @@ int internal_uart_printf(const char* format, va_list adpar, int label){
 					written += uart_put_int(va_arg(adpar, int), 16, 0, 1);
 					break;
 				case 'o':
-					written += uart_put_int(va_arg(adpar, unsigned int), 8, 1, 0);
+					written += uart_put_int(va_arg(adpar, uint64_t), 8, 1, 0);
 					break;
 				case 'u':
-					written += uart_put_int(va_arg(adpar, unsigned int), 10, 1, 0);
+					written += uart_put_int(va_arg(adpar, uint64_t), 10, 1, 0);
 					break;
 				case 'x':
-					written += uart_put_int(va_arg(adpar, unsigned int), 16, 1, 0);
+					written += uart_put_int(va_arg(adpar, uint64_t), 16, 1, 0);
 					break;
 				case 'b':
-					written += uart_put_int(va_arg(adpar, unsigned int), 2, 1, 0);
+					written += uart_put_int(va_arg(adpar, uint64_t), 2, 1, 0);
 					break;
 				case 'c':
 					uart_putc(va_arg(adpar,unsigned int));
