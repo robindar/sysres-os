@@ -2,8 +2,11 @@
 #define MMU_H
 
 #include <stdint.h>
+#include "../libc/uart/uart.h"
 
-#define MASK(f,t) ((f < t) ? ((uint64_t) 1 << (t+1)) - ((uint64_t) 1 << f)  : ((uint64_t) 1 << (f+1)) - ((uint64_t) 1 << t))
+#define one_u64 ((uint64_t) 1)
+#define AT(addr) (* (uint64_t *) (addr))
+#define MASK(f,t) ((f < t) ? (one_u64 << (t+1)) - (one_u64 << f)  : (one_u64 << (f+1)) - (one_u64 << t))
 
 /* Set Block and Page Attributes for Stage 1 Translation
  *
@@ -73,6 +76,7 @@ uint64_t get_address_sg1(uint64_t entry_addr);
  *  2 : Invalid address (a bit is 1 in range [47:30] but should not)
  *  3 : Improper lvl2 address alignement (a bit is 1 in range [20:0] : cf. ARM ARM : 2727)
  *  4 : Improper physical address alignement (bits [11:0] should be 0)
+ *  5 : lvl2 table entry not a table entry
  */
 
 /*  Set table entries such that with the current ASID, virtual address virtual_addr

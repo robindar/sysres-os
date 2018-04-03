@@ -1,5 +1,8 @@
 #include "mmu.h"
 
+extern uint64_t __TTBR1_EL1_start;
+extern uint64_t __LVL3_1_TRANSLATION_TABLES;
+
 block_attributes_sg1 new_block_attributes_sg1() {
   block_attributes_sg1 bas1;
   bas1.UXN = 0;
@@ -57,6 +60,14 @@ void set_block_and_page_attributes_sg1(uint64_t addr, block_attributes_sg1 bas1)
 void set_block_and_page_dirty_bit(uint64_t addr) {}
 void set_block_and_page_access_flag(uint64_t addr) {}
 
+void set_invalid_entry(uint64_t entry_addr) {
+	* (uint64_t *) entry_addr &= MASK(63, 1);
+}
+
+void set_invalid_page(uint64_t virtual_addr) {
+	// TODO: read physical address and invalidate page
+}
+
 table_attributes_sg1 new_table_attributes_sg1() {
 	table_attributes_sg1 ta1;
 	ta1.NSTable = 1;
@@ -79,16 +90,24 @@ void set_table_attributes_sg1(uint64_t addr, table_attributes_sg1 ta1) {
 	entry |= (ta1.APTable & 3) << 61;
 	entry |= (ta1.UXNTable & 1) << 60;
 	entry |= (ta1.PXNTable & 1) << 59;
+	// Mark entry as a table entry (cf. ARM ARM 2144)
+	entry |= 3;
+	uart_debug("Entry is %x\r\n", entry);
 	* ((uint64_t *) addr) = entry;
 }
 
 void init_table_entry_sg1(uint64_t entry_addr, uint64_t inner_addr) {
-	entry_addr = (entry_addr & 0xffff000000000fff) | ((inner_addr & 0xfffffffff) << 12);
+	* ((uint64_t *) entry_addr) =
+		// TODO: debug. third access yields fault at address WTF
+		// Temporarily remove  previous address. TODO: uncomment
+		//((* (uint64_t *) entry_addr) & 0xffff000000000fff) |
+		((inner_addr & 0xfffffffff) << 12);
+	uart_debug("%x -> %x\r\n", inner_addr, inner_addr & 0xfffffffff);
 	set_table_attributes_sg1(entry_addr, new_table_attributes_sg1());
 }
 
 uint64_t get_address_sg1(uint64_t entry_addr) {
-	return (* (uint64_t *) entry_addr) & MASK(47,12) >> 12;
+	return ((* (uint64_t *) entry_addr) & MASK(47,12)) >> 12;
 }
 
 int bind_address(uint64_t virtual_addr, uint64_t physical_addr, block_attributes_sg1 ba) {
@@ -111,8 +130,46 @@ int bind_address(uint64_t virtual_addr, uint64_t physical_addr, block_attributes
 	if ((lvl2_table_addr & 0x1fffff) != 0)
 		return 3;
 	uint64_t lvl2_offset = (virtual_addr & MASK(29,21)) >> 21;
+	if ((AT(lvl2_table_addr + lvl2_offset) & MASK(1,0)) != 3)
+		return 5;
 	uint64_t lvl3_table_addr = get_address_sg1(lvl2_table_addr + lvl2_offset);
 	uint64_t lvl3_offset = (virtual_addr * MASK(20, 12)) >> 12;
 	init_block_and_page_entry_sg1(lvl3_table_addr + lvl3_offset, (physical_addr >> 12), ba);
 	return 0;
+}
+
+void populate_lvl2_table() {
+	uint64_t lvl2_address, lvl3_address;
+	asm volatile ("mrs %0, TTBR0_EL1" : "=r"(lvl2_address) : :);
+	lvl3_address = lvl2_address + 0x8000;
+	uart_debug("lvl2_address = %x\r\nlvl3_address = %x\r\n", lvl2_address, lvl3_address);
+	for (int i=0; i<512; i++) {
+		init_table_entry_sg1(lvl2_address + i * 8, lvl3_address + i * 512 * 8);
+	}
+	uart_debug("Populated lvl2 table\r\n");
+}
+
+#define RAM_SIZE 1073741824 /* 1 Gio */
+#define ID_PAGING_SIZE 2097152 /* 2 Mio */
+void identity_paging() {
+	populate_lvl2_table();
+	/* WARNING : ID_PAGING_SIZE has to be a multiple of 512
+	 *           to avoid uninitialized entries in lvl3 table */
+	uart_debug("Binding identity\r\n");
+	for (uint64_t physical_pnt = 0; physical_pnt < ID_PAGING_SIZE; physical_pnt += 4 * 1024) {
+		int status = bind_address(physical_pnt, physical_pnt, new_block_attributes_sg1());
+		uart_error("%d\r\n", status);
+	}
+	uart_debug("Binded indentity\r\n");
+
+	uint64_t lvl2_address;
+	asm volatile ("mrs %0, TTBR0_EL1" : "=r"(lvl2_address) : :);
+
+	uart_debug("Invalidating remaining entries\r\n");
+	for (uint64_t invalid_lvl2_table_entries_index = ID_PAGING_SIZE / ((4 * 1024) * 512);
+			invalid_lvl2_table_entries_index < 512; invalid_lvl2_table_entries_index++) {
+		set_invalid_entry(lvl2_address + invalid_lvl2_table_entries_index * 8);
+	}
+	uart_debug("Identity paging success\r\n");
+	return;
 }
