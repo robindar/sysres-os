@@ -10,12 +10,6 @@ SECTIONS
 	{
 		KEEP(*(.text.boot))
 			*(.text)
-			. = ALIGN(0x8000);
-			__TTBR0_EL1_start = .;
-			. = . + 0x8000; /* 512 * 64 bits */
-			. = ALIGN(0x8000);
-			__TTBR1_EL1_start = .;
-			. = . + 0x8000; /* 512 * 64 bits */
 			*(.rodata)
 	}
 
@@ -31,6 +25,13 @@ SECTIONS
 		*(.bss)
 	}
 	__bss_end = .;
+	. = ALIGN(0x200000);
+	__TTBR0_EL1_start = .;
+	. = . + 0x8000; /* 512 * 64 bits */
+	. = ALIGN(0x8000);
+	__TTBR1_EL1_start = .;
+	. = . + 0x8000; /* 512 * 64 bits */
+	. = ALIGN(0x8000);
 	__end = .;
 }
 
