@@ -55,7 +55,7 @@ asm_dump: bin/$(FILENAME).elf
 deploy: CFLAGSADD = -DHARDWARE
 deploy: clean bin/$(FILENAME).img
 	sudo mount /dev/mmcblk0p1 /mnt/sd
-	sudo cp bin/$(FILENAME).img $(MNTPATH)/kernel7.img
+	sudo cp bin/$(FILENAME).img /mnt/sd/kernel7.img
 	sudo umount /mnt/sd
 
 weploy: CFLAGSADD = -DHARDWARE
