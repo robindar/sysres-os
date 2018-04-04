@@ -26,10 +26,10 @@ init_mmu:
 	bl identity_paging
 	mov X30, X28 // Restore link register
 
-	mrs X3, SCTLR_EL1 // Read  System Control Register configuration data
-	orr X3, X3, #1    // Set [M] bit and enable the MMU
-	msr SCTLR_EL1, X3 // Write System Control Register configuration data
+	//mrs X3, SCTLR_EL1 // Read  System Control Register configuration data
+	//orr X3, X3, #1    // Set [M] bit and enable the MMU
+	//msr SCTLR_EL1, X3 // Write System Control Register configuration data
 	// Instruction Synchronization Barrier:
-	isb
+	//isb
 
 	ret

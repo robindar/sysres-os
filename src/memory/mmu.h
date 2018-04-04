@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include "../libc/uart/uart.h"
+#include "../libc/debug/debug.h"
 
 #define one_u64 ((uint64_t) 1)
 #define AT(addr) (* (uint64_t *) (addr))
