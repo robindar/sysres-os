@@ -1,6 +1,6 @@
 FILENAME ?= myos
 MCPU     ?= cortex-a53
-MEMORY   ?= 256
+MEMORY   ?= 1024
 MACHINE  ?= raspi3
 
 ARMTOOLCHAIN ?= aarch64-linux-gnu

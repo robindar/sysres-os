@@ -38,7 +38,7 @@ block_attributes_sg1 new_block_attributes_sg1() {
 
 void init_block_and_page_entry_sg1(uint64_t entry_addr, uint64_t inner_addr, block_attributes_sg1 ba) {
 	AT(entry_addr) = (AT(entry_addr) & 0xffff000000000fff) | ((inner_addr & 0xfffffffff) << 12);
-        uart_debug("Entry addr = %x\r\n", entry_addr);
+        //uart_debug("Entry addr = %x\r\n", entry_addr);
 	set_block_and_page_attributes_sg1(entry_addr, ba);
 }
 
@@ -112,13 +112,13 @@ uint64_t get_address_sg1(uint64_t entry_addr) {
 }
 
 int bind_address(uint64_t virtual_addr, uint64_t physical_addr, block_attributes_sg1 ba) {
-        uart_debug("1\r\n");
+        //uart_debug("1\r\n");
 	uint64_t lvl2_table_addr = 0;
 	if ((physical_addr & MASK(11,0)) != 0)
 		return 4;
 	if ((virtual_addr & 0xffffc0000000) != 0)
 		return 2;
-        uart_debug("2\r\n");
+        //uart_debug("2\r\n");
 	switch (virtual_addr & 0xffff000000000000) {
 		case 0xffff000000000000:
 			asm volatile ("mrs %0, TTBR1_EL1" : "=r"(lvl2_table_addr) : :);
@@ -129,22 +129,24 @@ int bind_address(uint64_t virtual_addr, uint64_t physical_addr, block_attributes
 		default:
 			return 1;
 	}
-        uart_debug("3\r\n");
+        //uart_debug("3\r\n");
 	lvl2_table_addr &= 0xfffffffffffe;
 	if ((lvl2_table_addr & 0x1fffff) != 0)
 		return 3;
-        uart_debug("4\r\n");
-	uint64_t lvl2_offset = (virtual_addr & MASK(29,21)) >> 21;
+        //uart_debug("4\r\n");
+	uint64_t lvl2_index  = (virtual_addr & MASK(29,21)) >> 21;
+        uint64_t lvl2_offset = 8 * lvl2_index;
 	if ((AT(lvl2_table_addr + lvl2_offset) & MASK(1,0)) != 3)
 		return 5;
-        uart_debug("5\r\n");
+        //uart_debug("5\r\n");
 	uint64_t lvl3_table_addr = get_address_sg1(lvl2_table_addr + lvl2_offset);
-        uart_debug("6\r\n");
-	uint64_t lvl3_offset = (virtual_addr * MASK(20, 12)) >> 12;
-        uart_debug("7\r\n");
-        uart_debug("Addr before fault : %x\r\n", lvl3_table_addr + lvl3_offset);
+        //uart_debug("6\r\n");
+	uint64_t lvl3_index  = (virtual_addr & MASK(20, 12)) >> 12;
+        uint64_t lvl3_offset = 8 * lvl3_index;
+        //uart_debug("7\r\n");
+        //uart_debug("Addr before fault : %x\r\nTable_addr = %x\r\nOffset = %x\r\n", lvl3_table_addr + lvl3_offset, lvl3_table_addr, lvl3_offset);
 	init_block_and_page_entry_sg1(lvl3_table_addr + lvl3_offset, (physical_addr >> 12), ba);
-        uart_debug("8\r\n");
+        //uart_debug("8\r\n");
 	return 0;
 }
 
@@ -160,16 +162,16 @@ void populate_lvl2_table() {
 }
 
 #define RAM_SIZE 1073741824 /* 1 Gio */
-#define ID_PAGING_SIZE 2097152 /* 2 Mio */
+#define ID_PAGING_SIZE RAM_SIZE /*2097152 2 Mio */
 void identity_paging() {
 	populate_lvl2_table();
 	/* WARNING : ID_PAGING_SIZE has to be a multiple of 512
 	 *           to avoid uninitialized entries in lvl3 table */
 	uart_debug("Binding identity\r\n");
 	for (uint64_t physical_pnt = 0; physical_pnt < ID_PAGING_SIZE; physical_pnt += 4 * 1024) {
-                uart_debug("Before bind\r\n");
+                //uart_debug("Before bind\r\n");
                 int status = bind_address(physical_pnt, physical_pnt, new_block_attributes_sg1());
-                uart_debug("Status = %d\r\nPhysical_pnt = %x\r\n", status, physical_pnt);
+                //uart_debug("Status = %d\r\nPhysical_pnt = %x\r\n", status, physical_pnt);
                 assert(!status);
 	}
 	uart_debug("Binded indentity\r\n");
