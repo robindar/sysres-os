@@ -37,7 +37,7 @@ block_attributes_sg1 new_block_attributes_sg1() {
 }
 
 void init_block_and_page_entry_sg1(uint64_t entry_addr, uint64_t inner_addr, block_attributes_sg1 ba) {
-	AT(entry_addr) = (AT(entry_addr) & 0xffff000000000fff) | ((inner_addr & 0xfffffffff) << 12); /* Enlver ce bit shif ???? */
+	AT(entry_addr) = (AT(entry_addr) & 0xffff000000000fff) | ((inner_addr & 0xfffffffff));
         //uart_debug("Entry addr = %x\r\n", entry_addr);
 	set_block_and_page_attributes_sg1(entry_addr, ba);
 }
@@ -58,15 +58,20 @@ void set_block_and_page_attributes_sg1(uint64_t addr, block_attributes_sg1 bas1)
 	* ((uint64_t *) addr) = entr;
 }
 
-void set_block_and_page_dirty_bit(uint64_t addr) {}
-void set_block_and_page_access_flag(uint64_t addr) {}
+void set_block_and_page_dirty_bit(uint64_t addr) {
+    (void) addr;
+}
+void set_block_and_page_access_flag(uint64_t addr) {
+    (void) addr;
+}
 
 void set_invalid_entry(uint64_t entry_addr) {
-	* (uint64_t *) entry_addr &= MASK(63, 1);
+	AT(entry_addr) &= 0xfffffffffffffffe; /* Avoid MASK to avoid a warning */
 }
 
 void set_invalid_page(uint64_t virtual_addr) {
 	// TODO: read physical address and invalidate page
+    (void) virtual_addr;
 }
 
 table_attributes_sg1 new_table_attributes_sg1() {
@@ -101,7 +106,7 @@ void init_table_entry_sg1(uint64_t entry_addr, uint64_t inner_addr) {
 	* ((uint64_t *) entry_addr) =
 		// Temporarily remove  previous address. TODO: uncomment
 		//((* (uint64_t *) entry_addr) & 0xffff000000000fff) |
-		((inner_addr & 0xfffffffff) ); /* The bit shift here was also a mistake : inner_adress is 12 bit aligned*/
+		((inner_addr & 0xfffffffff) ); /* The bit shift here was also a mistake : ARM ARM 2146*/
 	//uart_debug("%x -> %x\r\n", inner_addr, inner_addr & 0xfffffffff);
 	set_table_attributes_sg1(entry_addr, new_table_attributes_sg1());
 }
@@ -111,6 +116,8 @@ uint64_t get_address_sg1(uint64_t entry_addr) {
                                                   (implicit at ARM ARM:2105, for table entry at 2146 or see ARMv8-A Address Translation page 9)*/
 }
 
+/* This function encounters an error is one of the three first bit of the result is one, ie MASK(2, 0) & result != 0 */
+/* See documention of bind_address for the meaning */
 uint64_t get_lvl3_entry_phys_address(uint64_t virtual_addr){
 	uint64_t lvl2_table_addr = 0;
 	if ((virtual_addr & 0xffffc0000000) != 0)
@@ -144,7 +151,7 @@ int bind_address(uint64_t virtual_addr, uint64_t physical_addr, block_attributes
     uint64_t lvl3_entry_phys_address = get_lvl3_entry_phys_address(virtual_addr);
     if((lvl3_entry_phys_address & MASK(2, 0)) != 0) /* An error happened */
         return lvl3_entry_phys_address;
-    init_block_and_page_entry_sg1(lvl3_entry_phys_address, (physical_addr >> 12), ba);
+    init_block_and_page_entry_sg1(lvl3_entry_phys_address, physical_addr, ba);
     return 0;
 }
 
@@ -159,8 +166,29 @@ void populate_lvl2_table() {
 	//uart_debug("Populated lvl2 table\r\n");
 }
 
+
+/*** IDENTITY PAGING ***/
+
 #define RAM_SIZE 1073741824 /* 1 Gio */
 #define ID_PAGING_SIZE RAM_SIZE/*2097152 2 Mio */
+
+void check_identity_paging(){
+    uart_debug("Checking identity paging\r\n");
+    uint64_t lvl3_entry_phys_addr;
+    for (uint64_t physical_pnt = 0; physical_pnt < ID_PAGING_SIZE; physical_pnt += 4 * 1024) {
+        lvl3_entry_phys_addr = get_lvl3_entry_phys_address(physical_pnt);
+        if((lvl3_entry_phys_addr & MASK(2, 0)) != 0) {
+            uart_debug("Error in get_lvl3_phys_address : %d\r\n", lvl3_entry_phys_addr);
+        }
+        if(get_address_sg1(lvl3_entry_phys_addr) != physical_pnt){
+            uart_debug("Physical address = %x\r\nRetrieved physical address = %x\r\n", physical_pnt, get_address_sg1(get_lvl3_entry_phys_address(physical_pnt)));
+            assert(0);
+        }
+    }
+    uart_debug("Checked identity paging\r\n");
+}
+
+
 void identity_paging() {
 	populate_lvl2_table();
 	/* WARNING : ID_PAGING_SIZE has to be a multiple of 512
@@ -187,13 +215,3 @@ void identity_paging() {
 }
 
 
-void check_identity_paging(){
-    uart_debug("Checking identity paging\r\n");
-    for (uint64_t physical_pnt = 0; physical_pnt < ID_PAGING_SIZE; physical_pnt += 4 * 1024) {
-        if(get_address_sg1(get_lvl3_entry_phys_address(physical_pnt)) != physical_pnt){
-            uart_debug("Physical address = %x\r\nRetrieved physical address = %x\r\n", physical_pnt, get_address_sg1(get_lvl3_entry_phys_address(physical_pnt)));
-            assert(0);
-        }
-    }
-    uart_debug("Checked identity paging\r\n");
-}

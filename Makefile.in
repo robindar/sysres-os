@@ -44,7 +44,7 @@ run: clean bin/$(FILENAME).elf
 	@:$(call check-defined,QEMU,path to qemu executables)
 	$(QEMU) -m $(MEMORY) -M $(MACHINE) -serial mon:stdio --kernel bin/$(FILENAME).elf
 
-gdb: bin/$(FILENAME).elf
+gdb: clean bin/$(FILENAME).elf
 	@:$(call check-defined,QEMU,path to qemu executables)
 	$(QEMU) -s -S -m $(MEMORY) -M $(MACHINE) -serial mon:stdio --kernel bin/$(FILENAME).elf
 
