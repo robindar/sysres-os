@@ -29,7 +29,7 @@ SECTIONS
 	__TTBR0_EL1_start = .;
 	. = . + 0x8000; /* 512 * 64 bits */
 	. = ALIGN(0x8000);
-	__TTBR1_EL1_start = .;
+	__TTBR1_EL1_start = .;  /* Warning this is positioned on the lvl3 tables ?? */
 	. = . + 0x8000; /* 512 * 64 bits */
 	. = ALIGN(0x8000);
 	__end = .;

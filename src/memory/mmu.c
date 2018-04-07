@@ -155,10 +155,16 @@ int bind_address(uint64_t virtual_addr, uint64_t physical_addr, block_attributes
     return 0;
 }
 
+/* Warning ignores alignement erros encountered by get_lvl3_entry_phys_address */
+uint64_t get_physical_address(uint64_t virtual_addr){
+    return get_address_sg1(get_lvl3_entry_phys_address(virtual_addr)) + (virtual_addr & MASK(11, 0));
+}
+
 void populate_lvl2_table() {
 	uint64_t lvl2_address, lvl3_address;
 	asm volatile ("mrs %0, TTBR0_EL1" : "=r"(lvl2_address) : :);
-	lvl3_address = lvl2_address + 0x8000;
+	lvl3_address = lvl2_address + 0x8000; /* why this ? */
+        assert(lvl2_address % GRANULE == 0);
 	//uart_debug("lvl2_address = %x\r\nlvl3_address = %x\r\n", lvl2_address, lvl3_address);
 	for (int i=0; i<512; i++) {
 		init_table_entry_sg1(lvl2_address + i * 8, lvl3_address + i * 512 * 8);
@@ -169,19 +175,16 @@ void populate_lvl2_table() {
 
 /*** IDENTITY PAGING ***/
 
-#define RAM_SIZE 1073741824 /* 1 Gio */
-#define ID_PAGING_SIZE RAM_SIZE/*2097152 2 Mio */
-
 void check_identity_paging(){
     uart_debug("Checking identity paging\r\n");
     uint64_t lvl3_entry_phys_addr;
-    for (uint64_t physical_pnt = 0; physical_pnt < ID_PAGING_SIZE; physical_pnt += 4 * 1024) {
+    for (uint64_t physical_pnt = 0; physical_pnt < ID_PAGING_SIZE; physical_pnt += GRANULE) {
         lvl3_entry_phys_addr = get_lvl3_entry_phys_address(physical_pnt);
         if((lvl3_entry_phys_addr & MASK(2, 0)) != 0) {
             uart_debug("Error in get_lvl3_phys_address : %d\r\n", lvl3_entry_phys_addr);
         }
-        if(get_address_sg1(lvl3_entry_phys_addr) != physical_pnt){
-            uart_debug("Physical address = %x\r\nRetrieved physical address = %x\r\n", physical_pnt, get_address_sg1(get_lvl3_entry_phys_address(physical_pnt)));
+        if(get_physical_address(physical_pnt) != physical_pnt){
+            uart_debug("Physical address = %x\r\nRetrieved physical address = %x\r\n", physical_pnt, get_physical_address(physical_pnt));
             assert(0);
         }
     }
@@ -194,7 +197,7 @@ void identity_paging() {
 	/* WARNING : ID_PAGING_SIZE has to be a multiple of 512
 	 *           to avoid uninitialized entries in lvl3 table */
 	uart_debug("Binding identity\r\n");
-	for (uint64_t physical_pnt = 0; physical_pnt < ID_PAGING_SIZE; physical_pnt += 4 * 1024) {
+	for (uint64_t physical_pnt = 0; physical_pnt < ID_PAGING_SIZE; physical_pnt += GRANULE) {
                 //uart_debug("Before bind\r\n");
                  int status = bind_address(physical_pnt, physical_pnt, new_block_attributes_sg1());
                 assert(!status);
