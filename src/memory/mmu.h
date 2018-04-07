@@ -2,6 +2,7 @@
 #define MMU_H
 
 #include <stdint.h>
+#include <stdbool.h>
 #include "../libc/uart/uart.h"
 #include "../libc/debug/debug.h"
 

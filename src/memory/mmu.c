@@ -27,12 +27,8 @@ block_attributes_sg1 new_block_attributes_sg1() {
    */
   bas1.AccessPermission = 1;
   bas1.NonSecure = 1;
-  /* Attribute Index
-   * .0 : Invalid
-   * 01 : Block / Page
-   * 11 : Table
-   */
-  bas1.AttrIndex = 1;
+  /* Stage 1 memory attributes index field, cache related buisness, cf ARM ARM 2175) */
+  bas1.AttrIndex = 0;
   return bas1;
 }
 
@@ -55,6 +51,7 @@ void set_block_and_page_attributes_sg1(uint64_t addr, block_attributes_sg1 bas1)
 	entr |= (bas1.AccessPermission & 3) << 6;
 	entr |= (bas1.NonSecure & 1) << 5;
 	entr |= (bas1.AttrIndex & 1) << 2;
+        entr |=  1;             /* Set block identifier (ARM ARM 2144)*/
 	* ((uint64_t *) addr) = entr;
 }
 
@@ -116,7 +113,15 @@ uint64_t get_address_sg1(uint64_t entry_addr) {
                                                   (implicit at ARM ARM:2105, for table entry at 2146 or see ARMv8-A Address Translation page 9)*/
 }
 
-/* This function encounters an error is one of the three first bit of the result is one, ie MASK(2, 0) & result != 0 */
+bool is_block_entry(uint64_t entry){
+    return ((entry & MASK(1,0)) == 1);
+}
+
+bool is_table_entry(uint64_t entry){
+    return ((entry & MASK(1,0)) == 3);
+}
+
+/* This function encounters an error iff one of the three first bit of the result is one, ie MASK(2, 0) & result != 0 */
 /* See documention of bind_address for the meaning */
 uint64_t get_lvl3_entry_phys_address(uint64_t virtual_addr){
 	uint64_t lvl2_table_addr = 0;
@@ -137,7 +142,7 @@ uint64_t get_lvl3_entry_phys_address(uint64_t virtual_addr){
 		return 3;
 	uint64_t lvl2_index  = (virtual_addr & MASK(29,21)) >> 21;
         uint64_t lvl2_offset = 8 * lvl2_index;
-	if ((AT(lvl2_table_addr + lvl2_offset) & MASK(1,0)) != 3)
+	if (!is_table_entry(AT(lvl2_table_addr + lvl2_offset)))
 		return 5;
 	uint64_t lvl3_table_addr = get_address_sg1(lvl2_table_addr + lvl2_offset);
 	uint64_t lvl3_index  = (virtual_addr & MASK(20, 12)) >> 12;
@@ -181,11 +186,16 @@ void check_identity_paging(){
     for (uint64_t physical_pnt = 0; physical_pnt < ID_PAGING_SIZE; physical_pnt += GRANULE) {
         lvl3_entry_phys_addr = get_lvl3_entry_phys_address(physical_pnt);
         if((lvl3_entry_phys_addr & MASK(2, 0)) != 0) {
-            uart_debug("Error in get_lvl3_phys_address : %d\r\n", lvl3_entry_phys_addr);
+            uart_error("Error in get_lvl3_phys_address : %d\r\n", lvl3_entry_phys_addr);
+            abort();
+        }
+        if(!is_block_entry(AT(lvl3_entry_phys_addr))){
+            uart_error("Not a block entry\r\nPhysical_pnt = %x\r\nLvl3 entry = %x\r\n", physical_pnt, AT(lvl3_entry_phys_addr));
+            abort();
         }
         if(get_physical_address(physical_pnt) != physical_pnt){
-            uart_debug("Physical address = %x\r\nRetrieved physical address = %x\r\n", physical_pnt, get_physical_address(physical_pnt));
-            assert(0);
+            uart_error("Physical address = %x\r\nRetrieved physical address = %x\r\n", physical_pnt, get_physical_address(physical_pnt));
+            abort();
         }
     }
     uart_debug("Checked identity paging\r\n");

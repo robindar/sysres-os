@@ -44,7 +44,7 @@ void kernel_main(uint64_t r0, uint64_t r1, uint64_t atags)
 	//uint64_t variable = 0;
 	//asm volatile("ADR %0, ." : "=r"(variable) : :);
 	//uart_printf("address is : %x\r\n", variable);
-	print_reg(ID_AA64MMFR1_EL1);
+	print_reg(MAIR_EL1);
 
 	syscall_test();
 

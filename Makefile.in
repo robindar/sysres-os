@@ -4,7 +4,8 @@ MEMORY   ?= 1024
 MACHINE  ?= raspi3
 
 ARMTOOLCHAIN ?= aarch64-linux-gnu
-QEMU     ?= $(shell which qemu-system-aarch64 2>/dev/null)
+QEMU         ?= $(shell which qemu-system-aarch64 2>/dev/null)
+ADDQEMUFLAGS += -d int,mmu,page -D log/qemu.log
 
 SFLAGS += -mcpu=$(MCPU) -fpic -ffreestanding
 CFLAGS += -mcpu=$(MCPU) -fpic -ffreestanding -std=gnu99 -O2 -Wall -Wextra -nostdlib -g
@@ -42,7 +43,7 @@ bin/$(FILENAME).img: bin/$(FILENAME).elf
 
 run: clean bin/$(FILENAME).elf
 	@:$(call check-defined,QEMU,path to qemu executables)
-	$(QEMU) -m $(MEMORY) -M $(MACHINE) -serial mon:stdio --kernel bin/$(FILENAME).elf
+	$(QEMU) -m $(MEMORY) -M $(MACHINE) $(ADDQEMUFLAGS) -serial mon:stdio --kernel bin/$(FILENAME).elf
 
 gdb: clean bin/$(FILENAME).elf
 	@:$(call check-defined,QEMU,path to qemu executables)
