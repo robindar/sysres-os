@@ -34,8 +34,8 @@ block_attributes_sg1 new_block_attributes_sg1() {
 
 void init_block_and_page_entry_sg1(uint64_t entry_addr, uint64_t inner_addr, block_attributes_sg1 ba) {
 	AT(entry_addr) = (AT(entry_addr) & MASK(63,48) & MASK(11,0)) |
-          ((inner_addr & MASK(35,0)));
-        //uart_debug("Entry addr = %x\r\n", entry_addr);
+		((inner_addr & MASK(35,0)));
+	//uart_debug("Entry addr = %x\r\n", entry_addr);
 	set_block_and_page_attributes_sg1(entry_addr, ba);
 }
 
@@ -52,15 +52,15 @@ void set_block_and_page_attributes_sg1(uint64_t addr, block_attributes_sg1 bas1)
 	entr |= (bas1.AccessPermission & 3) << 6;
 	entr |= (bas1.NonSecure & 1) << 5;
 	entr |= (bas1.AttrIndex & 1) << 2;
-        entr |=  1;             /* Set block identifier (ARM ARM 2144)*/
+	entr |=  1;             /* Set block identifier (ARM ARM 2144)*/
 	* ((uint64_t *) addr) = entr;
 }
 
 void set_block_and_page_dirty_bit(uint64_t addr) {
-    (void) addr;
+	(void) addr;
 }
 void set_block_and_page_access_flag(uint64_t addr) {
-    (void) addr;
+	(void) addr;
 }
 
 void set_invalid_entry(uint64_t entry_addr) {
@@ -69,7 +69,7 @@ void set_invalid_entry(uint64_t entry_addr) {
 
 void set_invalid_page(uint64_t virtual_addr) {
 	// TODO: read physical address and invalidate page
-    (void) virtual_addr;
+	(void) virtual_addr;
 }
 
 table_attributes_sg1 new_table_attributes_sg1() {
@@ -115,11 +115,11 @@ uint64_t get_address_sg1(uint64_t entry_addr) {
 }
 
 bool is_block_entry(uint64_t entry){
-    return ((entry & MASK(1,0)) == 1);
+	return ((entry & MASK(1,0)) == 1);
 }
 
 bool is_table_entry(uint64_t entry){
-    return ((entry & MASK(1,0)) == 3);
+	return ((entry & MASK(1,0)) == 3);
 }
 
 /* This function encounters an error iff one of the three first bit of the result is one, ie MASK(2, 0) & result != 0 */
@@ -142,35 +142,35 @@ uint64_t get_lvl3_entry_phys_address(uint64_t virtual_addr){
 	if ((lvl2_table_addr & MASK(16, 0)) != 0)
 		return 3;
 	uint64_t lvl2_index  = (virtual_addr & MASK(29,21)) >> 21;
-        uint64_t lvl2_offset = 8 * lvl2_index;
+	uint64_t lvl2_offset = 8 * lvl2_index;
 	if (!is_table_entry(AT(lvl2_table_addr + lvl2_offset)))
 		return 5;
 	uint64_t lvl3_table_addr = get_address_sg1(lvl2_table_addr + lvl2_offset);
 	uint64_t lvl3_index  = (virtual_addr & MASK(20, 12)) >> 12;
-        uint64_t lvl3_offset = 8 * lvl3_index;
-        return lvl3_table_addr + lvl3_offset;
+	uint64_t lvl3_offset = 8 * lvl3_index;
+	return lvl3_table_addr + lvl3_offset;
 }
 
 int bind_address(uint64_t virtual_addr, uint64_t physical_addr, block_attributes_sg1 ba) {
-    if ((physical_addr & MASK(11,0)) != 0)
-        return 4;
-    uint64_t lvl3_entry_phys_address = get_lvl3_entry_phys_address(virtual_addr);
-    if((lvl3_entry_phys_address & MASK(2, 0)) != 0) /* An error happened */
-        return lvl3_entry_phys_address;
-    init_block_and_page_entry_sg1(lvl3_entry_phys_address, physical_addr, ba);
-    return 0;
+	if ((physical_addr & MASK(11,0)) != 0)
+		return 4;
+	uint64_t lvl3_entry_phys_address = get_lvl3_entry_phys_address(virtual_addr);
+	if((lvl3_entry_phys_address & MASK(2, 0)) != 0) /* An error happened */
+		return lvl3_entry_phys_address;
+	init_block_and_page_entry_sg1(lvl3_entry_phys_address, physical_addr, ba);
+	return 0;
 }
 
 /* Warning ignores alignement erros encountered by get_lvl3_entry_phys_address */
 uint64_t get_physical_address(uint64_t virtual_addr){
-    return get_address_sg1(get_lvl3_entry_phys_address(virtual_addr)) + (virtual_addr & MASK(11, 0));
+	return get_address_sg1(get_lvl3_entry_phys_address(virtual_addr)) + (virtual_addr & MASK(11, 0));
 }
 
 void populate_lvl2_table() {
 	uint64_t lvl2_address, lvl3_address;
 	asm volatile ("mrs %0, TTBR0_EL1" : "=r"(lvl2_address) : :);
 	lvl3_address = lvl2_address + 0x8000; /* why this ? */
-        assert(lvl2_address % GRANULE == 0);
+	assert(lvl2_address % GRANULE == 0);
 	//uart_debug("lvl2_address = %x\r\nlvl3_address = %x\r\n", lvl2_address, lvl3_address);
 	for (int i=0; i<512; i++) {
 		init_table_entry_sg1(lvl2_address + i * 8, lvl3_address + i * 512 * 8);
@@ -182,24 +182,24 @@ void populate_lvl2_table() {
 /*** IDENTITY PAGING ***/
 
 void check_identity_paging(){
-    uart_debug("Checking identity paging\r\n");
-    uint64_t lvl3_entry_phys_addr;
-    for (uint64_t physical_pnt = 0; physical_pnt < ID_PAGING_SIZE; physical_pnt += GRANULE) {
-        lvl3_entry_phys_addr = get_lvl3_entry_phys_address(physical_pnt);
-        if((lvl3_entry_phys_addr & MASK(2, 0)) != 0) {
-            uart_error("Error in get_lvl3_phys_address : %d\r\n", lvl3_entry_phys_addr);
-            abort();
-        }
-        if(!is_block_entry(AT(lvl3_entry_phys_addr))){
-            uart_error("Not a block entry\r\nPhysical_pnt = %x\r\nLvl3 entry = %x\r\n", physical_pnt, AT(lvl3_entry_phys_addr));
-            abort();
-        }
-        if(get_physical_address(physical_pnt) != physical_pnt){
-            uart_error("Physical address = %x\r\nRetrieved physical address = %x\r\n", physical_pnt, get_physical_address(physical_pnt));
-            abort();
-        }
-    }
-    uart_debug("Checked identity paging\r\n");
+	uart_debug("Checking identity paging\r\n");
+	uint64_t lvl3_entry_phys_addr;
+	for (uint64_t physical_pnt = 0; physical_pnt < ID_PAGING_SIZE; physical_pnt += GRANULE) {
+		lvl3_entry_phys_addr = get_lvl3_entry_phys_address(physical_pnt);
+		if((lvl3_entry_phys_addr & MASK(2, 0)) != 0) {
+			uart_error("Error in get_lvl3_phys_address : %d\r\n", lvl3_entry_phys_addr);
+			abort();
+		}
+		if(!is_block_entry(AT(lvl3_entry_phys_addr))){
+			uart_error("Not a block entry\r\nPhysical_pnt = %x\r\nLvl3 entry = %x\r\n", physical_pnt, AT(lvl3_entry_phys_addr));
+			abort();
+		}
+		if(get_physical_address(physical_pnt) != physical_pnt){
+			uart_error("Physical address = %x\r\nRetrieved physical address = %x\r\n", physical_pnt, get_physical_address(physical_pnt));
+			abort();
+		}
+	}
+	uart_debug("Checked identity paging\r\n");
 }
 
 
@@ -209,9 +209,9 @@ void identity_paging() {
 	 *           to avoid uninitialized entries in lvl3 table */
 	uart_debug("Binding identity\r\n");
 	for (uint64_t physical_pnt = 0; physical_pnt < ID_PAGING_SIZE; physical_pnt += GRANULE) {
-                //uart_debug("Before bind\r\n");
-                 int status = bind_address(physical_pnt, physical_pnt, new_block_attributes_sg1());
-                assert(!status);
+		//uart_debug("Before bind\r\n");
+		int status = bind_address(physical_pnt, physical_pnt, new_block_attributes_sg1());
+		assert(!status);
 	}
 	uart_debug("Binded indentity\r\n");
 
@@ -224,7 +224,7 @@ void identity_paging() {
 		set_invalid_entry(lvl2_address + invalid_lvl2_table_entries_index * 8);
 	}
 	uart_debug("Identity paging success\r\n");
-        check_identity_paging();
+	check_identity_paging();
 	return;
 }
 
