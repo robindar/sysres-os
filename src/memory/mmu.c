@@ -33,14 +33,15 @@ block_attributes_sg1 new_block_attributes_sg1() {
 }
 
 void init_block_and_page_entry_sg1(uint64_t entry_addr, uint64_t inner_addr, block_attributes_sg1 ba) {
-	AT(entry_addr) = (AT(entry_addr) & 0xffff000000000fff) | ((inner_addr & 0xfffffffff));
+	AT(entry_addr) = (AT(entry_addr) & MASK(63,48) & MASK(11,0)) |
+          ((inner_addr & MASK(35,0)));
         //uart_debug("Entry addr = %x\r\n", entry_addr);
 	set_block_and_page_attributes_sg1(entry_addr, ba);
 }
 
 void set_block_and_page_attributes_sg1(uint64_t addr, block_attributes_sg1 bas1) {
 	uint64_t entr = * ((uint64_t *) addr);
-	entr &= 0xfffffffff000; // Keep only bits 12 to 47
+	entr &= MASK(47, 12);
 	entr |= (bas1.UXN & 1) << 54;
 	entr |= (bas1.PXN & 1) << 53;
 	entr |= (bas1.ContinuousBit & 1) << 52;
@@ -88,7 +89,7 @@ table_attributes_sg1 new_table_attributes_sg1() {
 
 void set_table_attributes_sg1(uint64_t addr, table_attributes_sg1 ta1) {
 	uint64_t entry = * ((uint64_t *) addr);
-	entry &= 0x7ffffffffffffff;
+	entry &= MASK(58, 0);
 	entry |= (ta1.NSTable & 1) << 63;
 	entry |= (ta1.APTable & 3) << 61;
 	entry |= (ta1.UXNTable & 1) << 60;
@@ -102,8 +103,8 @@ void set_table_attributes_sg1(uint64_t addr, table_attributes_sg1 ta1) {
 void init_table_entry_sg1(uint64_t entry_addr, uint64_t inner_addr) {
 	* ((uint64_t *) entry_addr) =
 		// Temporarily remove  previous address. TODO: uncomment
-		//((* (uint64_t *) entry_addr) & 0xffff000000000fff) |
-		((inner_addr & 0xfffffffff) ); /* The bit shift here was also a mistake : ARM ARM 2146*/
+		//((* (uint64_t *) entry_addr) & MASK(63, 48) & MASK(11, 0)) |
+		((inner_addr & MASK(35, 0)) ); /* The bit shift here was also a mistake : ARM ARM 2146*/
 	//uart_debug("%x -> %x\r\n", inner_addr, inner_addr & 0xfffffffff);
 	set_table_attributes_sg1(entry_addr, new_table_attributes_sg1());
 }
@@ -125,10 +126,10 @@ bool is_table_entry(uint64_t entry){
 /* See documention of bind_address for the meaning */
 uint64_t get_lvl3_entry_phys_address(uint64_t virtual_addr){
 	uint64_t lvl2_table_addr = 0;
-	if ((virtual_addr & 0xffffc0000000) != 0)
+	if ((virtual_addr & MASK(47, 30)) != 0)
 		return 2;
-	switch (virtual_addr & 0xffff000000000000) {
-		case 0xffff000000000000:
+	switch (virtual_addr & MASK(63, 48)) {
+		case MASK(63, 48):
 			asm volatile ("mrs %0, TTBR1_EL1" : "=r"(lvl2_table_addr) : :);
 			break;
 		case 0:
@@ -137,8 +138,8 @@ uint64_t get_lvl3_entry_phys_address(uint64_t virtual_addr){
 		default:
 			return 1;
 	}
-	lvl2_table_addr &= 0xfffffffffffe;
-	if ((lvl2_table_addr & 0x1fffff) != 0)
+	lvl2_table_addr &= MASK(47, 1);
+	if ((lvl2_table_addr & MASK(16, 0)) != 0)
 		return 3;
 	uint64_t lvl2_index  = (virtual_addr & MASK(29,21)) >> 21;
         uint64_t lvl2_offset = 8 * lvl2_index;
