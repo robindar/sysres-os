@@ -302,48 +302,80 @@ int uart_printf(const char* format,...){
 	va_list adpar;
 	va_start(adpar, format);
 	int written = internal_uart_printf(format, adpar, 0);
-        va_end(adpar);
+	va_end(adpar);
 	return written;
 }
+
 /* The return value is the number of char written, including the label */
-int uart_verbose(const char* format,...){
+int uart_verbose(const char* format __attribute__((__unused__)),...){
+	int written = 0;
+#if LOG_LEVEL >= _LOG_VERBOSE_
 	va_list adpar;
 	va_start(adpar, format);
-        uart_puts("[VERBOSE] ");
-	int written = internal_uart_printf(format, adpar, 1);
-        va_end(adpar);
+	uart_puts("[VERBOSE] ");
+	written = internal_uart_printf(format, adpar, 1);
+	va_end(adpar);
+#endif
 	return written;
 }
-int uart_debug(const char* format,...){
+
+int uart_debug(const char* format __attribute__((__unused__)),...){
+	int written = 0;
+#if LOG_LEVEL >= _LOG_DEBUG_
 	va_list adpar;
 	va_start(adpar, format);
-        uart_puts("[ DEBUG ] ");
-	int written = internal_uart_printf(format, adpar, 1);
-        va_end(adpar);
+	uart_puts("[ DEBUG ] ");
+	written = internal_uart_printf(format, adpar, 1);
+	va_end(adpar);
+#endif
 	return written;
 }
-int uart_info(const char* format,...){
+
+int uart_info(const char* format __attribute__((__unused__)),...){
+	int written = 0;
+#if LOG_LEVEL >= _LOG_INFO_
 	va_list adpar;
 	va_start(adpar, format);
-        uart_puts("[ INFO  ] ");
-	int written = internal_uart_printf(format, adpar, 1);
-        va_end(adpar);
+	uart_puts("[ INFO  ] ");
+	written = internal_uart_printf(format, adpar, 1);
+	va_end(adpar);
+#endif
 	return written;
 }
-int uart_warning(const char* format,...){
+
+int uart_warning(const char* format __attribute__((__unused__)),...){
+	int written = 0;
+#if LOG_LEVEL >= _LOG_WARNING_
 	va_list adpar;
 	va_start(adpar, format);
-        uart_puts("[WARNING] ");
-	int written = internal_uart_printf(format, adpar, 1);
-        va_end(adpar);
+	uart_puts("[WARNING] ");
+	written = internal_uart_printf(format, adpar, 1);
+	va_end(adpar);
+#endif
 	return written;
 }
-int uart_error(const char* format,...){
+
+int uart_error(const char* format __attribute__((__unused__)),...){
+	int written = 0;
+#if LOG_LEVEL >= _LOG_ERROR_
 	va_list adpar;
 	va_start(adpar, format);
-        uart_puts("[ ERROR ] ");
-	int written = internal_uart_printf(format, adpar, 1);
-        va_end(adpar);
+	uart_puts("[ ERROR ] ");
+	written = internal_uart_printf(format, adpar, 1);
+	va_end(adpar);
+#endif
+	return written;
+}
+
+int uart_wtf(const char* format __attribute__((__unused__)),...){
+	int written = 0;
+#if LOG_LEVEL >= LOG_WTF
+	va_list adpar;
+	va_start(adpar, format);
+	uart_puts("[  WTF  ] ");
+	written = internal_uart_printf(format, adpar, 1);
+	va_end(adpar);
+#endif
 	return written;
 }
 

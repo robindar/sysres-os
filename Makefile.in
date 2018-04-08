@@ -7,7 +7,14 @@ ARMTOOLCHAIN ?= aarch64-linux-gnu
 QEMU         ?= $(shell which qemu-system-aarch64 2>/dev/null)
 ADDQEMUFLAGS += -d int,mmu,page -D log/qemu.log
 
+ifdef LOG
+LOG_ARG := -DLOG=$(LOG)
+else
+LOG_ARG :=
+endif
+
 SFLAGS += -mcpu=$(MCPU) -fpic -ffreestanding
+CFLAGS += $(LOG_ARG)
 CFLAGS += -mcpu=$(MCPU) -fpic -ffreestanding -std=gnu99 -O2 -Wall -Wextra -nostdlib -g
 ASFLAGS += -g
 
