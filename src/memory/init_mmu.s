@@ -23,8 +23,7 @@ init_mmu:
 
 	mov X28, X30 // Preserve caller-saved link register
 	bl uart_init
-	//bl identity_paging
-        bl one_step_mapping
+	bl identity_paging
 	mov X30, X28 // Restore link register
 
 	mrs X3, SCTLR_EL1 // Read  System Control Register configuration data
@@ -36,7 +35,7 @@ init_mmu:
         //ldr X0, =0x3F215040
         //ldr X1, =0x20
         //bl PUT32
-	msr SCTLR_EL1, X0 // Write System Control Register configuration data
+	//msr SCTLR_EL1, X0 // Write System Control Register configuration data
         isb
         //bl halt
         b kernel_main

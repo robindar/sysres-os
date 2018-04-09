@@ -52,7 +52,7 @@ void set_block_and_page_attributes_sg1(uint64_t addr, block_attributes_sg1 bas1)
 	entr |= (bas1.AccessPermission & 3) << 6;
 	entr |= (bas1.NonSecure & 1) << 5;
 	entr |= (bas1.AttrIndex & 1) << 2;
-	entr |=  1;             /* Set block identifier (ARM ARM 2144)*/
+	entr |=  3;             /* WARNING : only for level 3 : Set block identifier (ARM ARM 2144)*/
 	* ((uint64_t *) addr) = entr;
 }
 
@@ -114,8 +114,8 @@ uint64_t get_address_sg1(uint64_t entry_addr) {
                                                   (implicit at ARM ARM:2105, for table entry at 2146 or see ARMv8-A Address Translation page 9)*/
 }
 
-bool is_block_entry(uint64_t entry){
-	return ((entry & MASK(1,0)) == 1);
+bool is_block_entry(uint64_t entry, int lvl){
+	return ((lvl < 3) && (entry & MASK(1,0)) == 1) || ((lvl == 3) && (entry & MASK(1, 0)) == 3);
 }
 
 bool is_table_entry(uint64_t entry){
@@ -177,7 +177,6 @@ void populate_lvl2_table() {
 	}
 	//uart_debug("Populated lvl2 table\r\n");
 }
-
 void one_step_mapping(){
 	uint64_t lvl2_address;
         uart_debug("Beginning One step\r\n");
@@ -187,6 +186,7 @@ void one_step_mapping(){
 	asm volatile ("mrs %0, TTBR0_EL1" : "=r"(lvl2_address) : :);
 	assert(lvl2_address % GRANULE == 0);
         init_block_and_page_entry_sg1(lvl2_address, 0x0, ba);
+        /* init_block_and_page_entry_sg1(lvl2_address + 0x1f9, GPIO_BASE, ba); *\\* 0x1f9 : corresponds to bits[29-21] of GPIO_BASE */
         uart_debug("Done One step\r\n");
         return;
 }
@@ -202,7 +202,7 @@ void check_identity_paging(){
 			uart_error("Error in get_lvl3_phys_address : %d\r\n", lvl3_entry_phys_addr);
 			abort();
 		}
-		if(!is_block_entry(AT(lvl3_entry_phys_addr))){
+		if(!is_block_entry(AT(lvl3_entry_phys_addr), 3)){
 			uart_error("Not a block entry\r\nPhysical_pnt = %x\r\nLvl3 entry = %x\r\n", physical_pnt, AT(lvl3_entry_phys_addr));
 			abort();
 		}
@@ -220,9 +220,12 @@ void identity_paging() {
 	/* WARNING : ID_PAGING_SIZE has to be a multiple of 512
 	 *           to avoid uninitialized entries in lvl3 table */
 	uart_debug("Binding identity\r\n");
+        block_attributes_sg1 ba = new_block_attributes_sg1();
+	ba.AccessFlag = 1;
+	ba.AccessPermission = 0; /* With 1 it doesn't workn see ARM ARM 2162 */
 	for (uint64_t physical_pnt = 0; physical_pnt < ID_PAGING_SIZE; physical_pnt += GRANULE) {
 		//uart_debug("Before bind\r\n");
-		int status = bind_address(physical_pnt, physical_pnt, new_block_attributes_sg1());
+		int status = bind_address(physical_pnt, physical_pnt, ba);
 		assert(!status);
 	}
 	uart_debug("Binded indentity\r\n");
