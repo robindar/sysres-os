@@ -33,7 +33,7 @@ block_attributes_sg1 new_block_attributes_sg1() {
 }
 
 void init_block_and_page_entry_sg1(uint64_t entry_addr, uint64_t inner_addr, block_attributes_sg1 ba) {
-	AT(entry_addr) = (AT(entry_addr) & MASK(63,48) & MASK(11,0)) |
+	AT(entry_addr) = (AT(entry_addr) & (MASK(63,48) | MASK(11,0))) |
 		((inner_addr & MASK(35,0)));
 	//uart_debug("Entry addr = %x\r\n", entry_addr);
 	set_block_and_page_attributes_sg1(entry_addr, ba);
@@ -173,11 +173,23 @@ void populate_lvl2_table() {
 	assert(lvl2_address % GRANULE == 0);
 	//uart_debug("lvl2_address = %x\r\nlvl3_address = %x\r\n", lvl2_address, lvl3_address);
 	for (int i=0; i<512; i++) {
-		init_table_entry_sg1(lvl2_address + i * 8, lvl3_address + i * 512 * 8);
+		init_table_entry_sg1(lvl2_address + i * 8, lvl3_address + i * GRANULE);
 	}
 	//uart_debug("Populated lvl2 table\r\n");
 }
 
+void one_step_mapping(){
+	uint64_t lvl2_address;
+        uart_debug("Beginning One step\r\n");
+	block_attributes_sg1 ba = new_block_attributes_sg1();
+	ba.AccessFlag = 1;
+	ba.AccessPermission = 0; /* With 1 it doesn't workn see ARM ARM 2162 */
+	asm volatile ("mrs %0, TTBR0_EL1" : "=r"(lvl2_address) : :);
+	assert(lvl2_address % GRANULE == 0);
+        init_block_and_page_entry_sg1(lvl2_address, 0x0, ba);
+        uart_debug("Done One step\r\n");
+        return;
+}
 
 /*** IDENTITY PAGING ***/
 
