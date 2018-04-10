@@ -1,7 +1,4 @@
 #include "interrupt.h"
-#include "libc/uart/uart.h"
-#include "libc/debug/debug.h"
-#include "stdbool.h"
 
 void display_esr_eln_info(uint64_t esr_eln){
     //Parse ESR_EL1 (see aarch64, exception and interrupt handling)
@@ -48,16 +45,68 @@ void display_pstate_info(uint64_t pstate){
                 , n,z,c,v,d,a,i,f,ss,ua,il,ar,m,sp);
 }
 
-void c_sync_handler(uint64_t el, uint64_t nb, uint64_t spsr_el, uint64_t elr_el, uint64_t esr_el, uint64_t far_el){
-    /* el indicates exception level */
+void display_error(char * msg, uint64_t el, uint64_t nb, uint64_t spsr_el, uint64_t elr_el, uint64_t esr_el, uint64_t far_el){
     uart_error(
-        "Sync Interruption :\r\nAt level : EL%d\r\nCase nb :%d\r\n"
+        "%s :\r\nAt level : EL%d\r\nCase nb :%d\r\n"
         "ELR_EL : 0x%x\r\nSPSR_EL : 0x%x\r\nESR_EL : 0x%x\r\nFAR_EL : 0x%x\r\n",
-        el,nb, elr_el, spsr_el, esr_el, far_el);
+        msg,el,nb, elr_el, spsr_el, esr_el, far_el);
     display_esr_eln_info(esr_el);
     display_pstate_info(elr_el);
     abort();
 }
+
+void instruction_abort_handler(uint64_t el, uint64_t nb, uint64_t spsr_el, uint64_t elr_el, uint64_t esr_el, uint64_t far_el, bool lower_el){
+        uint64_t instruction_fault_status_code = esr_el & MASK(5,0);
+        switch(instruction_fault_status_code){
+        case 0b110:             /* Transltation fault level 2 */
+            translation_fault_handler(far_el, 2, lower_el);
+            break;
+        case 0b111:             /* Transltation fault level 3 */
+            translation_fault_handler(far_el, 3, lower_el);
+            break;
+        default:
+            display_error("Instruction Abort Error", el, nb, spsr_el, elr_el, esr_el, far_el);
+        }
+}
+void data_abort_handler(uint64_t el, uint64_t nb, uint64_t spsr_el, uint64_t elr_el, uint64_t esr_el, uint64_t far_el, bool lower_el){
+        uint64_t data_fault_status_code = esr_el & MASK(5,0);
+        switch(data_fault_status_code){
+        case 0b110:             /* Transltation fault level 2 */
+            translation_fault_handler(far_el, 2, lower_el);
+            break;
+        case 0b111:             /* Transltation fault level 3 */
+            translation_fault_handler(far_el, 3, lower_el);
+            break;
+        default:
+            display_error("Data Abort Error", el, nb, spsr_el, elr_el, esr_el, far_el);
+        }
+}
+
+void translation_fault_handler(uint64_t fault_address, int level, bool lower_lvl){};
+
+void c_sync_handler(uint64_t el, uint64_t nb, uint64_t spsr_el, uint64_t elr_el, uint64_t esr_el, uint64_t far_el){
+    /* el indicates exception level */
+    uint64_t exception_class = (esr_el & 0xfc000000) >> 26;
+    /* See ARm ARM 1878 for EC constants */
+    switch(exception_class){
+    case 0b100000:          /* Instruction Abort from a lower Exception level */
+        instruction_abort_handler(el, nb, spsr_el, elr_el, esr_el, far_el, true);
+        break;
+    case 0b100001:          /* Instruction Abort without a change in Exception level */
+        instruction_abort_handler(el, nb, spsr_el, elr_el, esr_el, far_el, false);
+        break;
+    case 0b100100:          /* Data Abort from a lower Exception level */
+        data_abort_handler(el, nb, spsr_el, elr_el, esr_el, far_el, true);
+        break;
+    case 0b100101:          /* Data Abort without a change in Exception level */
+        data_abort_handler(el, nb, spsr_el, elr_el, esr_el, far_el, false);
+        break;
+    default:
+        display_error("Sync Exception Error", el, nb, spsr_el, elr_el, esr_el, far_el);
+    }
+
+}
+
 
 void c_serror_handler(uint64_t el, uint64_t nb, uint64_t elr_el, uint64_t spsr_el, uint64_t esr_el, uint64_t far_el){
     uart_error(
