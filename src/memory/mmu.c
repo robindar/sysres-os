@@ -169,7 +169,7 @@ uint64_t get_physical_address(uint64_t virtual_addr){
 void populate_lvl2_table() {
 	uint64_t lvl2_address, lvl3_address;
 	asm volatile ("mrs %0, TTBR0_EL1" : "=r"(lvl2_address) : :);
-	lvl3_address = lvl2_address + 0x8000; /* why this ? */
+	lvl3_address = lvl2_address + 2 * 0x1000; /* leave space for lvl2 tables TTBR0/1 */
 	assert(lvl2_address % GRANULE == 0);
 	//uart_debug("lvl2_address = %x\r\nlvl3_address = %x\r\n", lvl2_address, lvl3_address);
 	for (int i=0; i<512; i++) {
