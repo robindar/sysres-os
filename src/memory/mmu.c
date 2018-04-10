@@ -108,8 +108,7 @@ void set_table_attributes_sg1(uint64_t addr, table_attributes_sg1 ta1) {
 
 void init_table_entry_sg1(uint64_t entry_addr, uint64_t inner_addr) {
 	* ((uint64_t *) entry_addr) =
-		// Temporarily remove  previous address. TODO: uncomment
-		//((* (uint64_t *) entry_addr) & MASK(63, 48) & MASK(11, 0)) |
+		((* (uint64_t *) entry_addr) & (MASK(63, 48) | MASK(11, 0))) |
 		((inner_addr & MASK(35, 0)) ); /* The bit shift here was also a mistake : ARM ARM 2146*/
 	//uart_debug("%x -> %x\r\n", inner_addr, inner_addr & 0xfffffffff);
 	set_table_attributes_sg1(entry_addr, new_table_attributes_sg1());
