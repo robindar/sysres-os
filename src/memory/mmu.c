@@ -10,7 +10,8 @@ block_attributes_sg1 new_block_attributes_sg1() {
   bas1.ContinuousBit = 0;
   bas1.DirtyBit = 0;
   bas1.NotGlobal = 1;
-  bas1.AccessFlag = 0;
+  /* TODO: Set this back to 0 to avoid unneccessary caching */
+  bas1.AccessFlag = 1;
   /* Shareability
    * 00 : Non-shareable
    * 01 : unpredictable
@@ -25,7 +26,8 @@ block_attributes_sg1 new_block_attributes_sg1() {
    * 10 : RO : None
    * 11 : RO : RO
    */
-  bas1.AccessPermission = 1;
+  /* EL0 executable, Higher levels RWX */
+  bas1.AccessPermission = 0;
   bas1.NonSecure = 1;
   /* Stage 1 memory attributes index field, cache related buisness, cf ARM ARM 2175) */
   bas1.AttrIndex = 0;
