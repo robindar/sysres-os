@@ -64,6 +64,8 @@ void instruction_abort_handler(uint64_t el, uint64_t nb, uint64_t spsr_el, uint6
         case 0b111:             /* Transltation fault level 3 */
             translation_fault_handler(far_el, 3, lower_el);
             break;
+        case 0b1011:            /* Access flag fault level 3 */
+            access_flag_fault_lvl3_handler(far_el, lower_el);
         default:
             display_error("Instruction Abort Error", el, nb, spsr_el, elr_el, esr_el, far_el);
         }
@@ -77,12 +79,21 @@ void data_abort_handler(uint64_t el, uint64_t nb, uint64_t spsr_el, uint64_t elr
         case 0b111:             /* Transltation fault level 3 */
             translation_fault_handler(far_el, 3, lower_el);
             break;
+        case 0b1011:            /* Access flag fault level 3 */
+            access_flag_fault_lvl3_handler(far_el, lower_el);
         default:
             display_error("Data Abort Error", el, nb, spsr_el, elr_el, esr_el, far_el);
         }
 }
 
-void translation_fault_handler(uint64_t fault_address, int level, bool lower_lvl){};
+void translation_fault_handler(uint64_t fault_address, int level, bool lower_lvl){
+    asm volatile ("svc #0x42");
+};
+
+/* Warning : untested */
+void access_flag_fault_lvl3_handler(uint64_t fault_address, int level, bool lower_lvl){
+    asm volatile ("svc #0x43");
+}
 
 void c_sync_handler(uint64_t el, uint64_t nb, uint64_t spsr_el, uint64_t elr_el, uint64_t esr_el, uint64_t far_el){
     /* el indicates exception level */
