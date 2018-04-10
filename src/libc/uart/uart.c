@@ -1,8 +1,6 @@
 #include "uart.h"
 #include "../misc.h"
 
-#define GPIO_BASE       0x3F200000
-
 #ifdef HARDWARE
 /*
  * The following code was originally written

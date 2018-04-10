@@ -7,6 +7,9 @@
 #ifndef UART_H
 #define UART_H
 
+#define GPIO_BASE       0x3F200000
+
+
 #define _LOG_WTF_     0
 #define _LOG_ERROR_   1
 #define _LOG_WARNING_ 2
