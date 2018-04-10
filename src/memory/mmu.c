@@ -64,12 +64,13 @@ void set_block_and_page_access_flag(uint64_t addr) {
 }
 
 void set_invalid_entry(uint64_t entry_addr) {
-	AT(entry_addr) &= 0xfffffffffffffffe; /* Avoid MASK to avoid a warning */
+	AT(entry_addr) &= MASK(63, 1);
 }
 
 void set_invalid_page(uint64_t virtual_addr) {
-	// TODO: read physical address and invalidate page
-	(void) virtual_addr;
+	uint64_t physical_addr_lvl3 = get_lvl3_entry_phys_address(virtual_addr);
+	assert((physical_addr_lvl3 & MASK(2,0)) == 0); /* i.e. no error in previous call */
+	set_invalid_entry(physical_addr_lvl3);
 }
 
 table_attributes_sg1 new_table_attributes_sg1() {
