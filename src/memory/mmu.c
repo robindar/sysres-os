@@ -255,4 +255,47 @@ void identity_paging() {
 	return;
 }
 
+uint64_t get_physical_memory_map_addr () {
+	uint64_t memmap_addr = 0;
+	asm volatile ("ldr %0, =__physical_memory_map" : "=r"(memmap_addr) : :);
+	uart_verbose("Physical memory map is at 0x%x", memmap_addr);
+	return memmap_addr;
+}
 
+struct physical_memory_map_t physical_memory_map;
+
+#define SKIPPED_PAGES 3
+void init_physical_memory_map (uint64_t id_paging_size) {
+	uint64_t memmap_addr = get_physical_memory_map_addr ();
+	physical_memory_map.map = (uint32_t *) memmap_addr;
+	physical_memory_map.head = 0;
+	physical_memory_map.size = 0x100000;
+
+	uint32_t delta = 0; // Number of pages skipped for uart
+	for (uint32_t i = 0; i < (RAM_SIZE - id_paging_size) / GRANULE - SKIPPED_PAGES; i++) {
+		/* skip SKIPPED_PAGES pages for uart */
+		switch ( (i + delta) * GRANULE + id_paging_size) {
+			case GPIO_BASE:
+			case GPIO_BASE + 0x1000:
+			case GPIO_BASE + 0x15000:
+				delta += 1;
+				break;
+		}
+		physical_memory_map.map[ physical_memory_map.head + i ] = (i + delta) * GRANULE + id_paging_size;
+	}
+}
+
+static inline uint64_t get_unbound_physical_page() {
+	return physical_memory_map.map[ physical_memory_map.head++ ];
+}
+
+uint64_t get_new_page() {
+	uint64_t physical_address = get_unbound_physical_page();
+	bind_address(physical_address, physical_address, new_block_attributes_sg1());
+}
+
+void free_page(uint64_t physical_addr) {
+	assert(physical_memory_map.head > 0);
+	assert(physical_addr % GRANULE == 0);
+	physical_memory_map.map[ --physical_memory_map.head ] = physical_addr;
+}

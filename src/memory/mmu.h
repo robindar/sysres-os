@@ -12,7 +12,6 @@
 #define _MASK_(f,t) ( f == 63 ? 0 : (one_u64 << (f+1)) ) - (one_u64 << t)
 
 #define RAM_SIZE 1073741824 /* 1 Gio */
-#define ID_PAGING_SIZE RAM_SIZE/*2097152 2 Mio */
 #define GRANULE (0x1000)
 
 /* Set Block and Page Attributes for Stage 1 Translation
@@ -98,6 +97,12 @@ int bind_address(uint64_t virtual_addr, uint64_t physical_addr, block_attributes
 
 void identity_paging();
 
+/* Physical memory map strcture
+ * (functions as a stack)
+ *
+ * Access ith element with phys_mem.map[ phys_mem.head + i ]
+ * Insert freed pages at phys_mem.head - 1
+ */
 struct physical_memory_map_t {
 	uint32_t * map; /* address of the actual map */
 	uint32_t head, size;
