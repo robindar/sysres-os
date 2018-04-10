@@ -36,6 +36,9 @@ SECTIONS
 	. = . + 0x1000; /* 512 * 8 bytes */
 	. = ALIGN(0x1000);
 	/* LVL3 tables for TTBR0 : size 512 * 512 * 8 bytes */
+	. = . + 0x200000;
+	/* Align __end to granule size so it fits in a page */
+	. = ALIGN(0x1000);
 	__end = .;
 }
 

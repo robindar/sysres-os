@@ -69,7 +69,10 @@ void set_invalid_entry(uint64_t entry_addr) {
 
 void set_invalid_page(uint64_t virtual_addr) {
 	uint64_t physical_addr_lvl3 = get_lvl3_entry_phys_address(virtual_addr);
-	assert((physical_addr_lvl3 & MASK(2,0)) == 0); /* i.e. no error in previous call */
+	uint64_t status = physical_addr_lvl3 & MASK(2,0);
+	if (status)
+		uart_error("get_lvl3_entry_phys_address for address 0x%x failed with exit status %d\r\n", virtual_addr, status);
+	assert(status == 0); /* i.e. no error in previous call */
 	set_invalid_entry(physical_addr_lvl3);
 }
 
@@ -193,10 +196,10 @@ void one_step_mapping(){
 }
 
 /*** IDENTITY PAGING ***/
-void check_identity_paging(){
+void check_identity_paging(uint64_t id_paging_size){
 	uart_debug("Checking identity paging\r\n");
 	uint64_t lvl3_entry_phys_addr;
-	for (uint64_t physical_pnt = 0; physical_pnt < ID_PAGING_SIZE; physical_pnt += GRANULE) {
+	for (uint64_t physical_pnt = 0; physical_pnt < id_paging_size; physical_pnt += GRANULE) {
 		lvl3_entry_phys_addr = get_lvl3_entry_phys_address(physical_pnt);
 		if((lvl3_entry_phys_addr & MASK(2, 0)) != 0) {
 			uart_error("Error in get_lvl3_phys_address : %d\r\n", lvl3_entry_phys_addr);
@@ -217,13 +220,13 @@ void check_identity_paging(){
 
 void identity_paging() {
 	populate_lvl2_table();
-	/* WARNING : ID_PAGING_SIZE has to be a multiple of 512
-	 *           to avoid uninitialized entries in lvl3 table */
 	uart_debug("Binding identity\r\n");
 	block_attributes_sg1 ba = new_block_attributes_sg1();
 	ba.AccessFlag = 1;
 	ba.AccessPermission = 0; /* With 1 it doesn't workn see ARM ARM 2162 */
-	for (uint64_t physical_pnt = 0; physical_pnt < ID_PAGING_SIZE; physical_pnt += GRANULE) {
+	uint64_t id_paging_size;
+	asm volatile ("ldr %0, =__end" : "=r"(id_paging_size) : :);
+	for (uint64_t physical_pnt = 0; physical_pnt < id_paging_size; physical_pnt += GRANULE) {
 		//uart_debug("Before bind\r\n");
 		int status = bind_address(physical_pnt, physical_pnt, ba);
 		if (status)
@@ -236,12 +239,17 @@ void identity_paging() {
 	asm volatile ("mrs %0, TTBR0_EL1" : "=r"(lvl2_address) : :);
 
 	uart_debug("Invalidating remaining entries\r\n");
-	for (uint64_t invalid_lvl2_table_entries_index = ID_PAGING_SIZE / ((4 * 1024) * 512);
+	uint64_t current_table_index = (id_paging_size / GRANULE) % 512;
+	for (uint64_t invalid_lvl2_table_entries_index =
+			  id_paging_size / (GRANULE * 512) + (current_table_index == 0 ? 0 : 1);
 			invalid_lvl2_table_entries_index < 512; invalid_lvl2_table_entries_index++) {
 		set_invalid_entry(lvl2_address + invalid_lvl2_table_entries_index * 8);
 	}
+	if (current_table_index)
+		for ( uint64_t i = 0; i < 512 - current_table_index; i++)
+			set_invalid_page(id_paging_size + i * GRANULE);
 	uart_debug("Identity paging success\r\n");
-	check_identity_paging();
+	check_identity_paging(id_paging_size);
 	return;
 }
 
