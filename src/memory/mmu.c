@@ -180,20 +180,19 @@ void populate_lvl2_table() {
 }
 void one_step_mapping(){
 	uint64_t lvl2_address;
-        uart_debug("Beginning One step\r\n");
+	uart_debug("Beginning One step\r\n");
 	block_attributes_sg1 ba = new_block_attributes_sg1();
 	ba.AccessFlag = 1;
 	ba.AccessPermission = 0; /* With 1 it doesn't workn see ARM ARM 2162 */
 	asm volatile ("mrs %0, TTBR0_EL1" : "=r"(lvl2_address) : :);
 	assert(lvl2_address % GRANULE == 0);
-        init_block_and_page_entry_sg1(lvl2_address, 0x0, ba);
-        /* init_block_and_page_entry_sg1(lvl2_address + 0x1f9, GPIO_BASE, ba); *\\* 0x1f9 : corresponds to bits[29-21] of GPIO_BASE */
-        uart_debug("Done One step\r\n");
-        return;
+	init_block_and_page_entry_sg1(lvl2_address, 0x0, ba);
+	/* init_block_and_page_entry_sg1(lvl2_address + 0x1f9, GPIO_BASE, ba); *\\* 0x1f9 : corresponds to bits[29-21] of GPIO_BASE */
+	uart_debug("Done One step\r\n");
+	return;
 }
 
 /*** IDENTITY PAGING ***/
-
 void check_identity_paging(){
 	uart_debug("Checking identity paging\r\n");
 	uint64_t lvl3_entry_phys_addr;
@@ -221,12 +220,14 @@ void identity_paging() {
 	/* WARNING : ID_PAGING_SIZE has to be a multiple of 512
 	 *           to avoid uninitialized entries in lvl3 table */
 	uart_debug("Binding identity\r\n");
-        block_attributes_sg1 ba = new_block_attributes_sg1();
+	block_attributes_sg1 ba = new_block_attributes_sg1();
 	ba.AccessFlag = 1;
 	ba.AccessPermission = 0; /* With 1 it doesn't workn see ARM ARM 2162 */
 	for (uint64_t physical_pnt = 0; physical_pnt < ID_PAGING_SIZE; physical_pnt += GRANULE) {
 		//uart_debug("Before bind\r\n");
 		int status = bind_address(physical_pnt, physical_pnt, ba);
+		if (status)
+			uart_verbose("Invalid status found at 0x%x : %d\r\n", physical_pnt, status);
 		assert(!status);
 	}
 	uart_debug("Binded indentity\r\n");

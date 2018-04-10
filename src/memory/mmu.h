@@ -76,6 +76,8 @@ void init_table_entry_sg1(uint64_t entry_addr, uint64_t inner_addr);
 
 uint64_t get_address_sg1(uint64_t entry_addr);
 
+uint64_t get_lvl3_entry_phys_address(uint64_t virtual_addr);
+
 /*  Return values
  *
  *  0 : Success
@@ -95,5 +97,10 @@ uint64_t get_address_sg1(uint64_t entry_addr);
 int bind_address(uint64_t virtual_addr, uint64_t physical_addr, block_attributes_sg1 ba);
 
 void identity_paging();
+
+struct physical_memory_map_t {
+	uint32_t * map; /* address of the actual map */
+	uint32_t head, size;
+};
 
 #endif
