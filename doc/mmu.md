@@ -34,3 +34,10 @@ Translation table format descriptors : 2144 (Level 0,1,2)
                                        2147 (Level 3)
 
 Attribute fields description : 2150
+
+# Addressing Stuff #
+
+kernel (up to __end) is mapped to identity
+uart is paged to identity (GPIO BASE etc)
+
+No guaranties for other pages (see get unbound physical page)

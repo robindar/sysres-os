@@ -310,9 +310,9 @@ static inline uint64_t get_unbound_physical_page() {
 	return physical_memory_map.map[ physical_memory_map.head++ ];
 }
 
-uint64_t get_new_page() {
+uint64_t get_new_page(uint64_t virtual_address) {
 	uint64_t physical_address = get_unbound_physical_page();
-	bind_address(physical_address, physical_address, new_block_attributes_sg1());
+	bind_address(virtual_address, physical_address, new_block_attributes_sg1());
 }
 
 void free_page(uint64_t physical_addr) {
@@ -320,3 +320,9 @@ void free_page(uint64_t physical_addr) {
 	assert(physical_addr % GRANULE == 0);
 	physical_memory_map.map[ --physical_memory_map.head ] = physical_addr;
 }
+
+void translation_fault_handler(uint64_t fault_address, int level, bool lower_el){
+	if (!lower_el) {
+		get_new_page(fault_address);
+	}
+};

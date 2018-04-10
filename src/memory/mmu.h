@@ -108,4 +108,5 @@ struct physical_memory_map_t {
 	uint32_t head, size;
 };
 
+void translation_fault_handler(uint64_t fault_address, int level, bool lower_el);
 #endif

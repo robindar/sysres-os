@@ -86,10 +86,6 @@ void data_abort_handler(uint64_t el, uint64_t nb, uint64_t spsr_el, uint64_t elr
         }
 }
 
-void translation_fault_handler(uint64_t fault_address, int level, bool lower_lvl){
-    asm volatile ("svc #0x42");
-};
-
 /* Warning : untested */
 void access_flag_fault_lvl3_handler(uint64_t fault_address, int level, bool lower_lvl){
     asm volatile ("svc #0x43");
