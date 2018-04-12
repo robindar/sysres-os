@@ -61,6 +61,7 @@ void set_block_and_page_attributes_sg1(uint64_t addr, block_attributes_sg1 bas1)
 void set_block_and_page_dirty_bit(uint64_t addr) {
 	(void) addr;
 }
+
 void set_block_and_page_access_flag(uint64_t addr) {
 	(void) addr;
 }
@@ -70,7 +71,7 @@ void set_invalid_entry(uint64_t entry_addr) {
 }
 
 void set_identifier_table_entry(uint64_t entry_addr){
-    AT(entry_addr) &= MASK(63, 2) | 0b11;
+    AT(entry_addr) |= 0b11;
 }
 
 void set_invalid_page(uint64_t virtual_addr) {
@@ -171,17 +172,31 @@ uint64_t get_lvl3_entry_phys_address(uint64_t virtual_addr){
 	return lvl3_table_addr + lvl3_offset;
 }
 
+void init_new_lvl3_table(uint64_t lvl2_entry_phys_address){
+    uart_verbose("Initializing new table at %x\r\n", lvl2_entry_phys_address);
+    set_identifier_table_entry(lvl2_entry_phys_address);
+    assert(is_table_entry(AT(lvl2_entry_phys_address)));
+    uint64_t lvl3_entry_phys_address;
+    for(int i = 0; i < 512; i++){
+        lvl3_entry_phys_address = get_address_sg1(lvl2_entry_phys_address) + i * sizeof(uint64_t);
+        set_invalid_entry(lvl3_entry_phys_address);
+    }
+    uart_verbose("Initialization done\r\n");
+}
+
 int bind_address(uint64_t virtual_addr, uint64_t physical_addr, block_attributes_sg1 ba) {
 	if ((physical_addr & MASK(11,0)) != 0)
 		return 4;
 	uint64_t lvl3_entry_phys_address = get_lvl3_entry_phys_address(virtual_addr);
+        uint64_t lvl2_entry_phys_address;
         unsigned int error_code = lvl3_entry_phys_address & MASK(2, 0);
         switch(error_code){
             case 0:
                 init_block_and_page_entry_sg1(lvl3_entry_phys_address, physical_addr, ba);
                 return 0;
             case 5:
-                set_identifier_table_entry(get_lvl2_table_entry_phys_address(virtual_addr));
+                lvl2_entry_phys_address = get_lvl2_table_entry_phys_address(virtual_addr);
+                init_new_lvl3_table(lvl2_entry_phys_address);
                 return bind_address(virtual_addr, physical_addr, ba); /* Should not lead to infinite loops */
             default:
                 return lvl3_entry_phys_address;
@@ -273,7 +288,7 @@ void identity_paging() {
 			set_invalid_page(id_paging_size + i * GRANULE);
 	uart_debug("Identity paging success\r\n");
 	/* HANGS - WARNING */
-	bind_address(GPIO_BASE,GPIO_BASE, new_block_attributes_sg1());
+        bind_address(GPIO_BASE,GPIO_BASE, new_block_attributes_sg1());
 	bind_address(GPIO_BASE + 0x1000,GPIO_BASE + 0x1000, new_block_attributes_sg1());
 	bind_address(GPIO_BASE + 0x15000,GPIO_BASE + 0x15000, new_block_attributes_sg1());
 	check_identity_paging(id_paging_size);
@@ -314,9 +329,10 @@ static inline uint64_t get_unbound_physical_page() {
 	return physical_memory_map.map[ physical_memory_map.head++ ];
 }
 
-uint64_t get_new_page(uint64_t virtual_address) {
+/* Returns bind_address return code */
+int get_new_page(uint64_t virtual_address) {
 	uint64_t physical_address = get_unbound_physical_page();
-	bind_address(virtual_address, physical_address, new_block_attributes_sg1());
+	return bind_address(virtual_address, physical_address, new_block_attributes_sg1());
 }
 
 void free_page(uint64_t physical_addr) {
