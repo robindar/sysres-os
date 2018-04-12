@@ -1,12 +1,9 @@
 #include "mmu.h"
 
-extern uint64_t __TTBR1_EL1_start;
-extern uint64_t __LVL3_1_TRANSLATION_TABLES;
-
-block_attributes_sg1 new_block_attributes_sg1() {
+block_attributes_sg1 new_block_attributes_sg1(enum block_perm_config perm_config) {
   block_attributes_sg1 bas1;
-  bas1.UXN = 0;
-  bas1.PXN = 0;
+  bas1.UXN = (perm_config >> 3) & 1;
+  bas1.PXN = (perm_config >> 2) & 1;
   bas1.ContinuousBit = 0;
   bas1.DirtyBit = 0;
   bas1.NotGlobal = 1;
@@ -19,15 +16,7 @@ block_attributes_sg1 new_block_attributes_sg1() {
    * 11 : Outer shareable
    */
   bas1.Shareability = 0;
-  /* Access Permission
-   * XX : higher EL : EL0
-   * 00 : RW : None
-   * 01 : RW : RW
-   * 10 : RO : None
-   * 11 : RO : RO
-   */
-  /* EL0 executable, Higher levels RWX */
-  bas1.AccessPermission = 0;
+  bas1.AccessPermission = perm_config & 0b11;
   bas1.NonSecure = 1;
   /* Stage 1 memory attributes index field, cache related buisness, cf ARM ARM 2175) */
   bas1.AttrIndex = 0;
@@ -233,7 +222,7 @@ void populate_lvl2_table() {
 void one_step_mapping(){
 	uint64_t lvl2_address;
 	uart_debug("Beginning One step\r\n");
-	block_attributes_sg1 ba = new_block_attributes_sg1();
+	block_attributes_sg1 ba = new_block_attributes_sg1(KERNEL_PAGE);
 	ba.AccessFlag = 1;
 	ba.AccessPermission = 0; /* With 1 it doesn't workn see ARM ARM 2162 */
 	asm volatile ("mrs %0, TTBR0_EL1" : "=r"(lvl2_address) : :);
@@ -270,9 +259,7 @@ void check_identity_paging(uint64_t id_paging_size){
 uint64_t identity_paging() {
 	populate_lvl2_table();
 	uart_debug("Binding identity\r\n");
-	block_attributes_sg1 ba = new_block_attributes_sg1();
-	ba.AccessFlag = 1;
-	ba.AccessPermission = 0; /* With 1 it doesn't workn see ARM ARM 2162 */
+	block_attributes_sg1 ba = new_block_attributes_sg1(KERNEL_PAGE | ACCESS_FLAG_SET);
 	uint64_t id_paging_size;
 	asm volatile ("ldr %0, =__end" : "=r"(id_paging_size) : :);
 	for (uint64_t physical_pnt = 0; physical_pnt < id_paging_size; physical_pnt += GRANULE) {
@@ -297,6 +284,8 @@ uint64_t identity_paging() {
 	if (current_table_index)
 		for ( uint64_t i = 0; i < 512 - current_table_index; i++)
 			set_invalid_page(id_paging_size + i * GRANULE);
+
+	ba = new_block_attributes_sg1(IO_PAGE | ACCESS_FLAG_SET);
         /* Warning Access falg is set to 1 : you can set it to zero if you want but make sure the Access flag fault handling uses no uart o/w you'll end up in an infinite loop */
         bind_address(GPIO_BASE,GPIO_BASE, ba);
 	bind_address(GPIO_BASE + 0x1000,GPIO_BASE + 0x1000, ba);
@@ -354,7 +343,7 @@ void c_init_mmu(){
 int get_new_page(uint64_t virtual_address) {
         uart_verbose("Get new page called\r\n");
 	uint64_t physical_address = get_unbound_physical_page();
-	return bind_address(virtual_address, physical_address, new_block_attributes_sg1());
+	return bind_address(virtual_address, physical_address, new_block_attributes_sg1(KERNEL_PAGE));
 }
 
 void free_page(uint64_t physical_addr) {

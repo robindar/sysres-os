@@ -14,6 +14,16 @@
 #define RAM_SIZE 1073741824 /* 1 Gio */
 #define GRANULE (0x1000)
 
+enum block_perm_config {
+  /* UXN : bit 3
+   * PXN : bit 2
+   * AP  : bits 1-0 */
+  ACCESS_FLAG_SET = 0b10000,
+  KERNEL_PAGE     = 0b00000, /* EL0 --X, ELn RWX : UXN(0) PXN(0) AP(00) */
+  USER_PAGE       = 0b00001, /* EL0 RWX, ELn RW- : UXN(0) PXN(0) AP(01) */
+  IO_PAGE         = 0b01001  /* EL0 RW-, ELn RW- : UXN(1) PXN(0) AP(01) */
+};
+
 /* Set Block and Page Attributes for Stage 1 Translation
  *
  * Upper Attributes
@@ -44,7 +54,7 @@ typedef struct {
 			 AttrIndex;
 } block_attributes_sg1;
 
-block_attributes_sg1 new_block_attributes_sg1();
+block_attributes_sg1 new_block_attributes_sg1(enum block_perm_config);
 
 void init_block_and_page_entry_sg1(uint64_t entry_addr, uint64_t inner_addr, block_attributes_sg1 ba);
 
