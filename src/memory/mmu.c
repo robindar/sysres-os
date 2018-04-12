@@ -272,6 +272,10 @@ void identity_paging() {
 		for ( uint64_t i = 0; i < 512 - current_table_index; i++)
 			set_invalid_page(id_paging_size + i * GRANULE);
 	uart_debug("Identity paging success\r\n");
+	/* HANGS - WARNING */
+	bind_address(GPIO_BASE,GPIO_BASE, new_block_attributes_sg1());
+	bind_address(GPIO_BASE + 0x1000,GPIO_BASE + 0x1000, new_block_attributes_sg1());
+	bind_address(GPIO_BASE + 0x15000,GPIO_BASE + 0x15000, new_block_attributes_sg1());
 	check_identity_paging(id_paging_size);
 	return;
 }
