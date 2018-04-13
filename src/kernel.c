@@ -31,6 +31,16 @@ void syscall_test(){
     asm volatile ("svc #0x1"::);
 }
 
+void malloc_test(){
+    uart_debug("Entering malloc test\r\n");
+    uint64_t * p = (uint64_t *) kmalloc(sizeof(uint64_t));
+    *p = 42;
+    char * array = (char *) kmalloc(GRANULE * sizeof(char));
+    array[GRANULE - 1] = 42;
+    ksbrk(-((int)(GRANULE * sizeof(char) + sizeof(uint64_t))));
+    uart_debug("Testing malloc test\r\n");
+
+}
 void kernel_main(uint64_t r0, uint64_t r1, uint64_t atags)
 {
 	// Declare as unused
@@ -38,7 +48,7 @@ void kernel_main(uint64_t r0, uint64_t r1, uint64_t atags)
 	(void) r1;
 	(void) atags;
 
-	uart_init();
+        init_alloc();
 	uart_info("Performed kernel initialization\r\n");
 	print_formatting_tests();
 
@@ -46,10 +56,8 @@ void kernel_main(uint64_t r0, uint64_t r1, uint64_t atags)
 	//asm volatile("ADR %0, ." : "=r"(variable) : :);
 	//uart_printf("address is : %x\r\n", variable);
 	print_reg(MAIR_EL1);
-        uart_debug("ksrbk(0) : %x\r\n", ksbrk(0));
-        uint64_t * p = ksbrk(sizeof(uint64_t));
-        uart_debug("p = %x\r\n", (uint64_t) p);
-        *p = 42;
+        malloc_test();
+
 
 	syscall_test();
 	while (1){

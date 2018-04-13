@@ -7,7 +7,7 @@ block_attributes_sg1 new_block_attributes_sg1(enum block_perm_config perm_config
   bas1.ContinuousBit = 0;
   bas1.DirtyBit = 0;
   bas1.NotGlobal = 1;
-  bas1.AccessFlag = (perm_config >> 5) & 1;
+  bas1.AccessFlag = (perm_config >> 4) & 1;
   /* Shareability
    * 00 : Non-shareable
    * 01 : unpredictable
@@ -68,7 +68,7 @@ void set_invalid_page(uint64_t virtual_addr) {
 	uint64_t physical_addr_lvl3 = get_lvl3_entry_phys_address(virtual_addr);
 	uint64_t status = physical_addr_lvl3 & MASK(2,0);
 	if (status)
-		uart_error("set_invalide_page : get_lvl3_entry_phys_address for address 0x%x failed with exit status %d\r\n", virtual_addr, status);
+		uart_error("set_invalid_page : get_lvl3_entry_phys_address for address 0x%x failed with exit status %d\r\n", virtual_addr, status);
 	assert(status == 0); /* i.e. no error in previous call */
 	set_invalid_entry(physical_addr_lvl3);
 }
@@ -327,6 +327,10 @@ void c_init_mmu(){
     uint64_t id_paging_size = identity_paging();
     check_identity_paging(id_paging_size);
     init_physical_memory_map(id_paging_size);
+    /* Stack Initialization */
+    int status = get_new_page(GPIO_BASE - GRANULE, KERNEL_PAGE | ACCESS_FLAG_SET) & MASK(2, 0);
+    if(status)
+        uart_error("Error during stack initialization with status : %d\r\n", status);
     uart_verbose("C MMU Init sucess\r\n");
 }
 
@@ -345,10 +349,22 @@ int get_new_page(uint64_t virtual_address, enum block_perm_config block_perm) {
 	return bind_address(virtual_address, physical_address, new_block_attributes_sg1(block_perm));
 }
 
-void free_page(uint64_t physical_addr) {
+/* Warning : do not use directly : use only inside free_virtual_page */
+void free_physical_page(uint64_t physical_addr) {
 	assert(physical_memory_map.head > 0);
 	assert(physical_addr % GRANULE == 0);
 	physical_memory_map.map[ --physical_memory_map.head ] = physical_addr;
+}
+
+/* returns get_lvl3_address status */
+/* free the page from any inside address */
+int free_virtual_page(uint64_t virtual_addr){
+        uint64_t lvl3_entry_phys_address = get_lvl3_entry_phys_address(virtual_addr);
+        set_invalid_entry(lvl3_entry_phys_address);
+        int status = lvl3_entry_phys_address & MASK(2, 0);
+        uint64_t physical_address = get_address_sg1(get_lvl3_entry_phys_address(virtual_addr));
+        free_physical_page(physical_address);
+        return status;
 }
 
 void translation_fault_handler(uint64_t fault_address, int level, bool lower_el){

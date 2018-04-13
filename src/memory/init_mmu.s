@@ -32,12 +32,5 @@ init_mmu:
 	msr SCTLR_EL1, X3 // Write System Control Register configuration data
 	// Instruction Synchronization Barrier:
 	isb
-        //ldr X0, =0x3F215040
-        //ldr X1, =0x20
-        //bl PUT32
-	//msr SCTLR_EL1, X0 // Write System Control Register configuration data
-        isb
-        //bl halt
-        b kernel_main
 
 	ret

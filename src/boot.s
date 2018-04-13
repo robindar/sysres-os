@@ -62,8 +62,11 @@ _start:
 
 	bl init_mmu
 
+        //Stack setup
+        ldr X0, =0x3F200000
+        mov sp, X0
 	mov X0, #0
-	b kernel_main
+	bl kernel_main
 
 	//halt
 .globl halt
