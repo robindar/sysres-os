@@ -7,8 +7,7 @@ block_attributes_sg1 new_block_attributes_sg1(enum block_perm_config perm_config
   bas1.ContinuousBit = 0;
   bas1.DirtyBit = 0;
   bas1.NotGlobal = 1;
-  /* TODO: Set this back to 0 to avoid unneccessary caching */
-  bas1.AccessFlag = 0;
+  bas1.AccessFlag = (perm_config >> 5) & 1;
   /* Shareability
    * 00 : Non-shareable
    * 01 : unpredictable
@@ -340,10 +339,10 @@ void c_init_mmu(){
 }
 
 /* Returns bind_address return code */
-int get_new_page(uint64_t virtual_address) {
-        uart_verbose("Get new page called\r\n");
+int get_new_page(uint64_t virtual_address, enum block_perm_config block_perm) {
+	uart_verbose("Get new page called\r\n");
 	uint64_t physical_address = get_unbound_physical_page();
-	return bind_address(virtual_address, physical_address, new_block_attributes_sg1(KERNEL_PAGE));
+	return bind_address(virtual_address, physical_address, new_block_attributes_sg1(block_perm));
 }
 
 void free_page(uint64_t physical_addr) {
@@ -356,7 +355,7 @@ void translation_fault_handler(uint64_t fault_address, int level, bool lower_el)
 	(void) level;
         uart_verbose("Translation fault handler called\r\n");
 	if (!lower_el) {
-		get_new_page(fault_address);
+		get_new_page(fault_address, KERNEL_PAGE);
 	}
 };
 
