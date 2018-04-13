@@ -38,7 +38,7 @@ void malloc_test(){
     char * array = (char *) kmalloc(GRANULE * sizeof(char));
     array[GRANULE - 1] = 42;
     ksbrk(-((int)(GRANULE * sizeof(char) + sizeof(uint64_t))));
-    uart_debug("Testing malloc test\r\n");
+    uart_debug("Done malloc test\r\n");
 
 }
 void kernel_main(uint64_t r0, uint64_t r1, uint64_t atags)
@@ -47,9 +47,10 @@ void kernel_main(uint64_t r0, uint64_t r1, uint64_t atags)
 	(void) r0;
 	(void) r1;
 	(void) atags;
-
+        uart_info("Beginning kernel initialization\r\n");
         init_alloc();
 	uart_info("Performed kernel initialization\r\n");
+
 	print_formatting_tests();
 
 	//uint64_t variable = 0;

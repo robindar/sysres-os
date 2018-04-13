@@ -3,11 +3,14 @@
 /* Stack begins at #3F200000 see boot.s */
 #define STACK_BEGIN GPIO_BASE
 
-uint64_t heap_begin;
+
+//Note : we thank GCC who was kindly putting this variable at the same address as physical memeory map (without static) and thus init_alloc was actually modifying physical memory map for our grestest pleasure
+static uint64_t heap_begin;
 
 void init_alloc(){
     uart_info("Init Alloc...\r\n");
     asm volatile ("ldr %0, =__end" : "=r"(heap_begin) : :);
+
     /* For now : half the meory for the stack, half for the heap */
     //set_invalid_page((STACK_BEGIN + heap_begin)/2);
     uart_info("Init Alloc done\r\n");

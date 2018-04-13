@@ -300,7 +300,7 @@ uint64_t get_physical_memory_map_addr () {
 	return memmap_addr;
 }
 
-struct physical_memory_map_t physical_memory_map;
+static struct physical_memory_map_t physical_memory_map;
 
 #define SKIPPED_PAGES 3
 void init_physical_memory_map (uint64_t id_paging_size) {
@@ -336,17 +336,22 @@ void c_init_mmu(){
 
 
 /* static inline */ uint64_t get_unbound_physical_page() {
-        uart_verbose("get_unbound_physical_page called\r\n");
         assert(physical_memory_map.head < physical_memory_map.size);
         uint64_t res = physical_memory_map.map[ physical_memory_map.head++ ];
         return res;
+}
+
+void pmapdump(){
+            uart_verbose("Physical memory map structure at %x\r\n%x\r\n%x\r\n%x\r\n",(uint64_t) &physical_memory_map, (uint64_t)physical_memory_map.map, physical_memory_map.head, physical_memory_map.size);
 }
 
 /* Returns bind_address return code */
 int get_new_page(uint64_t virtual_address, enum block_perm_config block_perm) {
 	uart_verbose("Get new page called\r\n");
 	uint64_t physical_address = get_unbound_physical_page();
-	return bind_address(virtual_address, physical_address, new_block_attributes_sg1(block_perm));
+        uart_verbose("Got a new physical page\r\n");
+	uint64_t status = bind_address(virtual_address, physical_address, new_block_attributes_sg1(block_perm));
+        return status;
 }
 
 /* Warning : do not use directly : use only inside free_virtual_page */
@@ -373,6 +378,7 @@ void translation_fault_handler(uint64_t fault_address, int level, bool lower_el)
 	if (!lower_el) {
 		get_new_page(fault_address, KERNEL_PAGE);
 	}
+        uart_verbose("Translation fault handler returns\r\n");
 };
 
 void access_flag_fault_lvl3_handler(uint64_t fault_address, int level, bool lower_lvl){

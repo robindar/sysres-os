@@ -109,6 +109,8 @@ uint64_t identity_paging();
 
 void c_init_mmu();
 
+void pmapdump();
+
 /* Physical memory map strcture
  * (functions as a stack)
  *
