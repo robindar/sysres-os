@@ -25,9 +25,6 @@ SECTIONS
 		*(.bss)
 	}
 	__bss_end = .;
-	/* Physical memory map : size 512 * 512 * 4 bytes */
-	__physical_memory_map = .;
-	. = . + 0x100000;
 	. = ALIGN(0x200000); /* Ensure bits [20:0] are 0 (cf. ARM ARM 2727) */
 	__TTBR0_EL1_start = .;
 	. = . + 0x1000; /* 512 * 8 bytes */
@@ -39,6 +36,9 @@ SECTIONS
 	. = . + 0x200000;
 	/* Align __end to granule size so it fits in a page */
 	. = ALIGN(0x1000);
+        /* Physical memory map : size 512 * 512 * 4 bytes */
+	__physical_memory_map = .;
+	. = . + 0x100000;
 	__end = .;
 }
 

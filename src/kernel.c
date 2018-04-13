@@ -4,6 +4,7 @@
 #include "libc/misc.h"
 #include "libc/debug/debug.h"
 #include "interrupt.h"
+#include "memory/alloc.h"
 
 #if defined(__cplusplus)
 extern "C" /* Use C linkage for kernel_main. */
@@ -45,9 +46,12 @@ void kernel_main(uint64_t r0, uint64_t r1, uint64_t atags)
 	//asm volatile("ADR %0, ." : "=r"(variable) : :);
 	//uart_printf("address is : %x\r\n", variable);
 	print_reg(MAIR_EL1);
+        uart_debug("ksrbk(0) : %x\r\n", ksbrk(0));
+        uint64_t * p = ksbrk(sizeof(uint64_t));
+        uart_debug("p = %x\r\n", (uint64_t) p);
+        *p = 42;
 
 	syscall_test();
-
 	while (1){
 		uart_putc(uart_getc());
 	}

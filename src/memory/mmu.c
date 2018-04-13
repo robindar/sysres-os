@@ -11,7 +11,7 @@ block_attributes_sg1 new_block_attributes_sg1() {
   bas1.DirtyBit = 0;
   bas1.NotGlobal = 1;
   /* TODO: Set this back to 0 to avoid unneccessary caching */
-  bas1.AccessFlag = 1;
+  bas1.AccessFlag = 0;
   /* Shareability
    * 00 : Non-shareable
    * 01 : unpredictable
@@ -58,12 +58,14 @@ void set_block_and_page_attributes_sg1(uint64_t addr, block_attributes_sg1 bas1)
 	* ((uint64_t *) addr) = entr;
 }
 
-void set_block_and_page_dirty_bit(uint64_t addr) {
-	(void) addr;
+/* Set dirty bit to 1 */
+void set_entry_dirty_bit(uint64_t entry_addr) {
+        AT(entry_addr) |= (((uint64_t) 1) << 51);
 }
 
-void set_block_and_page_access_flag(uint64_t addr) {
-	(void) addr;
+/* Set access flag to 1 */
+void set_entry_access_flag(uint64_t entry_addr) {
+	AT(entry_addr) |= (1 << 10);
 }
 
 void set_invalid_entry(uint64_t entry_addr) {
@@ -78,9 +80,18 @@ void set_invalid_page(uint64_t virtual_addr) {
 	uint64_t physical_addr_lvl3 = get_lvl3_entry_phys_address(virtual_addr);
 	uint64_t status = physical_addr_lvl3 & MASK(2,0);
 	if (status)
-		uart_error("get_lvl3_entry_phys_address for address 0x%x failed with exit status %d\r\n", virtual_addr, status);
+		uart_error("set_invalide_page : get_lvl3_entry_phys_address for address 0x%x failed with exit status %d\r\n", virtual_addr, status);
 	assert(status == 0); /* i.e. no error in previous call */
 	set_invalid_entry(physical_addr_lvl3);
+}
+
+void set_page_access_flag(uint64_t virtual_addr){
+	uint64_t physical_addr_lvl3 = get_lvl3_entry_phys_address(virtual_addr);
+	uint64_t status = physical_addr_lvl3 & MASK(2,0);
+	if (status)
+		uart_error("set_page_access_flag : get_lvl3_entry_phys_address for address 0x%x failed with exit status %d\r\n", virtual_addr, status);
+	assert(status == 0); /* i.e. no error in previous call */
+        set_entry_access_flag(physical_addr_lvl3);
 }
 
 table_attributes_sg1 new_table_attributes_sg1() {
@@ -255,8 +266,8 @@ void check_identity_paging(uint64_t id_paging_size){
 	uart_debug("Checked identity paging\r\n");
 }
 
-
-void identity_paging() {
+/* Returns identity paging size */
+uint64_t identity_paging() {
 	populate_lvl2_table();
 	uart_debug("Binding identity\r\n");
 	block_attributes_sg1 ba = new_block_attributes_sg1();
@@ -286,19 +297,18 @@ void identity_paging() {
 	if (current_table_index)
 		for ( uint64_t i = 0; i < 512 - current_table_index; i++)
 			set_invalid_page(id_paging_size + i * GRANULE);
-	uart_debug("Identity paging success\r\n");
-	/* HANGS - WARNING */
-        bind_address(GPIO_BASE,GPIO_BASE, new_block_attributes_sg1());
-	bind_address(GPIO_BASE + 0x1000,GPIO_BASE + 0x1000, new_block_attributes_sg1());
-	bind_address(GPIO_BASE + 0x15000,GPIO_BASE + 0x15000, new_block_attributes_sg1());
-	check_identity_paging(id_paging_size);
-	return;
+        /* Warning Access falg is set to 1 : you can set it to zero if you want but make sure the Access flag fault handling uses no uart o/w you'll end up in an infinite loop */
+        bind_address(GPIO_BASE,GPIO_BASE, ba);
+	bind_address(GPIO_BASE + 0x1000,GPIO_BASE + 0x1000, ba);
+	bind_address(GPIO_BASE + 0x15000,GPIO_BASE + 0x15000, ba);
+        uart_debug("Identity paging success\r\n");
+	return id_paging_size;
 }
 
 uint64_t get_physical_memory_map_addr () {
 	uint64_t memmap_addr = 0;
 	asm volatile ("ldr %0, =__physical_memory_map" : "=r"(memmap_addr) : :);
-	uart_verbose("Physical memory map is at 0x%x", memmap_addr);
+	uart_verbose("Physical memory map is at 0x%x\r\n", memmap_addr);
 	return memmap_addr;
 }
 
@@ -309,10 +319,10 @@ void init_physical_memory_map (uint64_t id_paging_size) {
 	uint64_t memmap_addr = get_physical_memory_map_addr ();
 	physical_memory_map.map = (uint32_t *) memmap_addr;
 	physical_memory_map.head = 0;
-	physical_memory_map.size = 0x100000;
-
+	physical_memory_map.size = 0x100000; /* = sizeof(uint32_t) * 512 * 512 -> maybe overkill */
 	uint32_t delta = 0; // Number of pages skipped for uart
 	for (uint32_t i = 0; i < (RAM_SIZE - id_paging_size) / GRANULE - SKIPPED_PAGES; i++) {
+
 		/* skip SKIPPED_PAGES pages for uart */
 		switch ( (i + delta) * GRANULE + id_paging_size) {
 			case GPIO_BASE:
@@ -321,16 +331,28 @@ void init_physical_memory_map (uint64_t id_paging_size) {
 				delta += 1;
 				break;
 		}
-		physical_memory_map.map[ physical_memory_map.head + i ] = (i + delta) * GRANULE + id_paging_size;
+		physical_memory_map.map[ physical_memory_map.head + i] = (i + delta) * GRANULE + id_paging_size;
 	}
 }
 
-static inline uint64_t get_unbound_physical_page() {
-	return physical_memory_map.map[ physical_memory_map.head++ ];
+void c_init_mmu(){
+    uint64_t id_paging_size = identity_paging();
+    check_identity_paging(id_paging_size);
+    init_physical_memory_map(id_paging_size);
+    uart_verbose("C MMU Init sucess\r\n");
+}
+
+
+/* static inline */ uint64_t get_unbound_physical_page() {
+        uart_verbose("get_unbound_physical_page called\r\n");
+        assert(physical_memory_map.head < physical_memory_map.size);
+        uint64_t res = physical_memory_map.map[ physical_memory_map.head++ ];
+        return res;
 }
 
 /* Returns bind_address return code */
 int get_new_page(uint64_t virtual_address) {
+        uart_verbose("Get new page called\r\n");
 	uint64_t physical_address = get_unbound_physical_page();
 	return bind_address(virtual_address, physical_address, new_block_attributes_sg1());
 }
@@ -342,7 +364,16 @@ void free_page(uint64_t physical_addr) {
 }
 
 void translation_fault_handler(uint64_t fault_address, int level, bool lower_el){
+	(void) level;
+        uart_verbose("Translation fault handler called\r\n");
 	if (!lower_el) {
 		get_new_page(fault_address);
 	}
 };
+
+void access_flag_fault_lvl3_handler(uint64_t fault_address, int level, bool lower_lvl){
+	(void) level;
+        (void) lower_lvl;
+        //uart_verbose("Access flag fault handler called\r\n");
+        set_page_access_flag(fault_address);
+}

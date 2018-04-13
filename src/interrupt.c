@@ -6,9 +6,9 @@ void display_esr_eln_info(uint64_t esr_eln){
     bool il = (esr_eln & 0x2000000) >> 25;
     uint16_t instr_specific_syndrom = (esr_eln & 0x1fffff);
     uart_info(
-        "ER_ELn info :\r\nException Class : 0b%b\r\nIL : %d\r\n"
-         "Instruction Specific Syndrom : 0x%x\r\n",
-        exception_class, il, instr_specific_syndrom);
+        "ESR_ELn info :\r\nException Class : 0b%b\r\nIL : %d\r\n"
+         "Instruction Specific Syndrom : 0x%x\r\n = 0b%b\r\n",
+        exception_class, il, instr_specific_syndrom, instr_specific_syndrom);
 }
 
 void display_pstate_info(uint64_t pstate){
@@ -66,10 +66,12 @@ void instruction_abort_handler(uint64_t el, uint64_t nb, uint64_t spsr_el, uint6
             break;
         case 0b1011:            /* Access flag fault level 3 */
             access_flag_fault_lvl3_handler(far_el, lower_el);
+            break;
         default:
             display_error("Instruction Abort Error", el, nb, spsr_el, elr_el, esr_el, far_el);
         }
 }
+
 void data_abort_handler(uint64_t el, uint64_t nb, uint64_t spsr_el, uint64_t elr_el, uint64_t esr_el, uint64_t far_el, bool lower_el){
         uint64_t data_fault_status_code = esr_el & MASK(5,0);
         switch(data_fault_status_code){
@@ -81,14 +83,10 @@ void data_abort_handler(uint64_t el, uint64_t nb, uint64_t spsr_el, uint64_t elr
             break;
         case 0b1011:            /* Access flag fault level 3 */
             access_flag_fault_lvl3_handler(far_el, lower_el);
+            break;
         default:
             display_error("Data Abort Error", el, nb, spsr_el, elr_el, esr_el, far_el);
         }
-}
-
-/* Warning : untested */
-void access_flag_fault_lvl3_handler(uint64_t fault_address, int level, bool lower_lvl){
-    asm volatile ("svc #0x43");
 }
 
 void c_sync_handler(uint64_t el, uint64_t nb, uint64_t spsr_el, uint64_t elr_el, uint64_t esr_el, uint64_t far_el){

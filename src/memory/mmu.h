@@ -95,7 +95,9 @@ uint64_t get_lvl3_entry_phys_address(uint64_t virtual_addr);
  */
 int bind_address(uint64_t virtual_addr, uint64_t physical_addr, block_attributes_sg1 ba);
 
-void identity_paging();
+uint64_t identity_paging();
+
+void c_init_mmu();
 
 /* Physical memory map strcture
  * (functions as a stack)
