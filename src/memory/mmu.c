@@ -13,6 +13,7 @@ block_attributes_sg1 new_block_attributes_sg1(enum block_perm_config perm_config
    * 01 : unpredictable
    * 10 : Inner shareable
    * 11 : Outer shareable
+   The meaning of Inner/Outer shareable is controled by the Cache Level ID register. See ARM ARM 2405
    */
   bas1.Shareability = 0;
   bas1.AccessPermission = perm_config & 0b11;
@@ -261,6 +262,7 @@ uint64_t identity_paging() {
 	populate_lvl2_table();
 	uart_info("Binding identity\r\n");
 	block_attributes_sg1 ba = new_block_attributes_sg1(KERNEL_PAGE | ACCESS_FLAG_SET);
+        ba.ContinuousBit = 1;
 	uint64_t id_paging_size;
 	asm volatile ("ldr %0, =__end" : "=r"(id_paging_size) : :);
 	for (uint64_t physical_pnt = 0; physical_pnt < id_paging_size; physical_pnt += GRANULE) {
