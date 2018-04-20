@@ -18,11 +18,10 @@ enum block_perm_config {
   /* UXN : bit 3
    * PXN : bit 2
    * AP  : bits 1-0 */
-  ACCESS_FLAG_SET = 0b010000,
-  DIRTY_BIT_SET   = 0b100000,
-  KERNEL_PAGE     = 0b000000, /* EL0 --X, ELn RWX : UXN(0) PXN(0) AP(00) */
-  USER_PAGE       = 0b000001, /* EL0 RWX, ELn RW- : UXN(0) PXN(0) AP(01) */
-  IO_PAGE         = 0b001001  /* EL0 RW-, ELn RW- : UXN(1) PXN(0) AP(01) */
+  ACCESS_FLAG_SET = 0b10000,
+  KERNEL_PAGE     = 0b00000, /* EL0 --X, ELn RWX : UXN(0) PXN(0) AP(00) */
+  USER_PAGE       = 0b00001, /* EL0 RWX, ELn RW- : UXN(0) PXN(0) AP(01) */
+  IO_PAGE         = 0b01001  /* EL0 RW-, ELn RW- : UXN(1) PXN(0) AP(01) */
 };
 
 /* Set Block and Page Attributes for Stage 1 Translation
@@ -111,8 +110,6 @@ uint64_t identity_paging();
 void c_init_mmu();
 
 void pmapdump();
-
-bool get_dirty_bit_from_virtual_addr(uint64_t virtual_addr);
 
 /* Physical memory map strcture
  * (functions as a stack)
