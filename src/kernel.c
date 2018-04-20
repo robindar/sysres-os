@@ -5,6 +5,7 @@
 #include "libc/debug/debug.h"
 #include "interrupt.h"
 #include "memory/alloc.h"
+#include "test/test.h"
 
 #if defined(__cplusplus)
 extern "C" /* Use C linkage for kernel_main. */
@@ -37,6 +38,7 @@ void malloc_test(){
     *p = 42;
     char * array = (char *) kmalloc(GRANULE * sizeof(char));
     array[GRANULE - 1] = 42;
+    uart_debug("p = 0x%x\r\narray = 0x%x\r\n",p, array);
     ksbrk(-((int)(GRANULE * sizeof(char) + sizeof(uint64_t))));
     uart_debug("Done malloc test\r\n");
 
@@ -60,12 +62,13 @@ void kernel_main(uint64_t r0, uint64_t r1, uint64_t atags)
 	//uint64_t variable = 0;
 	//asm volatile("ADR %0, ." : "=r"(variable) : :);
 	//uart_printf("address is : %x\r\n", variable);
-	print_reg(MAIR_EL1);
+	print_reg(CLIDR_EL1);
         malloc_test();
+        matrix_main();
 
 
 	syscall_test();
-	while (1){
-		uart_putc(uart_getc());
-	}
+	/* while (1){ */
+	/* 	uart_putc(uart_getc()); */
+	/* } */
 }

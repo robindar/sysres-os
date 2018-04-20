@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include "../libc/uart/uart.h"
 #include "../libc/debug/debug.h"
+#include "alloc.h"
 
 #define one_u64 ((uint64_t) 1)
 #define AT(addr) (* (uint64_t *) (addr))
@@ -22,6 +23,16 @@ enum block_perm_config {
   KERNEL_PAGE     = 0b00000, /* EL0 --X, ELn RWX : UXN(0) PXN(0) AP(00) */
   USER_PAGE       = 0b00001, /* EL0 RWX, ELn RW- : UXN(0) PXN(0) AP(01) */
   IO_PAGE         = 0b01001  /* EL0 RW-, ELn RW- : UXN(1) PXN(0) AP(01) */
+};
+
+enum block_cache_config {
+    /* See doc/mmu.md for details */
+    DEVICE        = 0,
+    NORMAL_WT_NT  = 1,
+    NORMAL_WT_T   = 2,
+    NORMAL_WB_NT  = 3,
+    NORMAL_WB_T   = 4,
+    NON_CACHEABLE = 5
 };
 
 /* Set Block and Page Attributes for Stage 1 Translation
@@ -54,7 +65,7 @@ typedef struct {
 			 AttrIndex;
 } block_attributes_sg1;
 
-block_attributes_sg1 new_block_attributes_sg1(enum block_perm_config);
+block_attributes_sg1 new_block_attributes_sg1(enum block_perm_config perm_config, enum block_cache_config cache_config);
 
 void init_block_and_page_entry_sg1(uint64_t entry_addr, uint64_t inner_addr, block_attributes_sg1 ba);
 

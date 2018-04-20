@@ -1,6 +1,6 @@
 #include "mmu.h"
 
-block_attributes_sg1 new_block_attributes_sg1(enum block_perm_config perm_config) {
+block_attributes_sg1 new_block_attributes_sg1(enum block_perm_config perm_config, enum block_cache_config cache_config) {
   block_attributes_sg1 bas1;
   bas1.UXN = (perm_config >> 3) & 1;
   bas1.PXN = (perm_config >> 2) & 1;
@@ -19,7 +19,7 @@ block_attributes_sg1 new_block_attributes_sg1(enum block_perm_config perm_config
   bas1.AccessPermission = perm_config & 0b11;
   bas1.NonSecure = 1;
   /* Stage 1 memory attributes index field, cache related buisness, cf ARM ARM 2175) */
-  bas1.AttrIndex = 0;
+  bas1.AttrIndex = 0 * cache_config;
   return bas1;
 }
 
@@ -197,7 +197,8 @@ int bind_address(uint64_t virtual_addr, uint64_t physical_addr, block_attributes
             case 5:
                 lvl2_entry_phys_address = get_lvl2_table_entry_phys_address(virtual_addr);
                 init_new_lvl3_table(lvl2_entry_phys_address);
-                return bind_address(virtual_addr, physical_addr, ba); /* Should not lead to infinite loops */
+                /* Should not lead to infinite loops */
+                return bind_address(virtual_addr, physical_addr, ba);
             default:
                 return lvl3_entry_phys_address;
         }
@@ -224,7 +225,7 @@ void populate_lvl2_table() {
 void one_step_mapping(){
 	uint64_t lvl2_address;
 	uart_debug("Beginning One step\r\n");
-	block_attributes_sg1 ba = new_block_attributes_sg1(KERNEL_PAGE);
+	block_attributes_sg1 ba = new_block_attributes_sg1(KERNEL_PAGE, NORMAL_WT_NT);
 	ba.AccessFlag = 1;
 	ba.AccessPermission = 0; /* With 1 it doesn't workn see ARM ARM 2162 */
 	asm volatile ("mrs %0, TTBR0_EL1" : "=r"(lvl2_address) : :);
@@ -261,7 +262,8 @@ void check_identity_paging(uint64_t id_paging_size){
 uint64_t identity_paging() {
 	populate_lvl2_table();
 	uart_info("Binding identity\r\n");
-	block_attributes_sg1 ba = new_block_attributes_sg1(KERNEL_PAGE | ACCESS_FLAG_SET);
+        /* The caching polic may be wrong here */
+	block_attributes_sg1 ba = new_block_attributes_sg1(KERNEL_PAGE | ACCESS_FLAG_SET, NORMAL_WT_NT);
         ba.ContinuousBit = 1;
 	uint64_t id_paging_size;
 	asm volatile ("ldr %0, =__end" : "=r"(id_paging_size) : :);
@@ -288,7 +290,7 @@ uint64_t identity_paging() {
 		for ( uint64_t i = 0; i < 512 - current_table_index; i++)
 			set_invalid_page(id_paging_size + i * GRANULE);
 
-	ba = new_block_attributes_sg1(IO_PAGE | ACCESS_FLAG_SET);
+	ba = new_block_attributes_sg1(IO_PAGE | ACCESS_FLAG_SET, DEVICE);
         /* Warning Access falg is set to 1 : you can set it to zero if you want but make sure the Access flag fault handling uses no uart o/w you'll end up in an infinite loop */
         bind_address(GPIO_BASE,GPIO_BASE, ba);
 	bind_address(GPIO_BASE + 0x1000,GPIO_BASE + 0x1000, ba);
@@ -327,20 +329,52 @@ void init_physical_memory_map (uint64_t id_paging_size) {
 	}
 }
 
+/* Cache initialization */
+void init_cache(){
+    uart_info("Initializing Cache\r\n");
+    /* Invalidate cache entries */
+    asm volatile("IC IALLU");
+    /* Init MAIR_EL1 according to choices described in doc/mmu.md for page caching*/
+    uint64_t reg = 0;
+    reg |= ((uint64_t) 0b10111011) << (8 * 1);
+    reg |= ((uint64_t) 0b00110011) << (8 * 2);
+    reg |= ((uint64_t) 0b11111111) << (8 * 3);
+    reg |= ((uint64_t) 0b01110111) << (8 * 4);
+    reg |= ((uint64_t) 0b01000100) << (8 * 5);
+    asm volatile("msr mair_el1, %0" : : "r"(reg) :);
+    /* Table caching see doc/mmu.md*/
+    /* Currently the config is 01 */
+    uint64_t config = 0b10;
+    asm volatile("mrs %0, tcr_el1" : "=r"(reg) : :);
+    /* Clear fields : see ARM ARM 2685 for enconding */
+    /* Taking care of TTBRO/TTBR1, Inner/Outer */
+    reg &= ~MASK(27, 26);
+    reg &= ~MASK(25, 24);
+    reg &= ~MASK(11, 10);
+    reg &= ~MASK(9, 8);
+    /* Setting fields */
+    reg |= (config << 26);
+    reg |= (config << 24);
+    reg |= (config << 10);
+    reg |= (config << 8);
+    asm volatile("msr tcr_el1, %0" : : "r"(reg) :);
+}
+
 void c_init_mmu(){
     uint64_t id_paging_size = identity_paging();
     /* Maybe remove the next line later */
     check_identity_paging(id_paging_size);
     init_physical_memory_map(id_paging_size);
+    //init_cache();
     /* Stack Initialization */
-    int status = get_new_page(GPIO_BASE - GRANULE, KERNEL_PAGE | ACCESS_FLAG_SET) & MASK(2, 0);
+    int status = get_new_page(GPIO_BASE - GRANULE, KERNEL_PAGE | ACCESS_FLAG_SET, NORMAL_WT_NT) & MASK(2, 0);
     if(status)
         uart_error("Error during stack initialization with status : %d\r\n", status);
     uart_init("C MMU Init sucess\r\n");
 }
 
 
-/* static inline */ uint64_t get_unbound_physical_page() {
+uint64_t get_unbound_physical_page() {
         assert(physical_memory_map.head < physical_memory_map.size);
         uint64_t res = physical_memory_map.map[ physical_memory_map.head++ ];
         return res;
@@ -352,11 +386,11 @@ void pmapdump(){
 }
 
 /* Returns bind_address return code */
-int get_new_page(uint64_t virtual_address, enum block_perm_config block_perm) {
+int get_new_page(uint64_t virtual_address, enum block_perm_config block_perm, enum block_cache_config cache_config) {
 	uart_verbose("Get_new_page called\r\n");
 	uint64_t physical_address = get_unbound_physical_page();
-        uart_verbose("Got a new physical page\r\n");
-	uint64_t status = bind_address(virtual_address, physical_address, new_block_attributes_sg1(block_perm));
+        uart_verbose("Got a new physical page at 0x%x\r\n", physical_address);
+	uint64_t status = bind_address(virtual_address, physical_address, new_block_attributes_sg1(block_perm, cache_config));
         return status;
 }
 
@@ -371,9 +405,12 @@ void free_physical_page(uint64_t physical_addr) {
 /* free the page from any inside address : ie given any virtual address, frees the page that contains it */
 int free_virtual_page(uint64_t virtual_addr){
         uint64_t lvl3_entry_phys_address = get_lvl3_entry_phys_address(virtual_addr);
+        uint64_t physical_address = get_address_sg1(lvl3_entry_phys_address);
         set_invalid_entry(lvl3_entry_phys_address);
         int status = lvl3_entry_phys_address & MASK(2, 0);
-        uint64_t physical_address = get_address_sg1(get_lvl3_entry_phys_address(virtual_addr));
+        uart_verbose(
+            "Freeing page containing virtual address 0x%x at physical address 0x%x\r\n"
+            ,virtual_addr, physical_address);
         free_physical_page(physical_address);
         return status;
 }
@@ -381,10 +418,13 @@ int free_virtual_page(uint64_t virtual_addr){
 void translation_fault_handler(uint64_t fault_address, int level, bool lower_el){
 	(void) level;
         uart_verbose("Translation fault handler called\r\n");
+        assert(fault_address >= get_heap_begin());
+        assert(fault_address < get_heap_begin() + get_end_offset());
 	if (!lower_el) {
-		get_new_page(fault_address, KERNEL_PAGE | ACCESS_FLAG_SET);
+		get_new_page(fault_address, KERNEL_PAGE | ACCESS_FLAG_SET, NORMAL_WT_NT);
 	}
         uart_verbose("Translation fault handler returns\r\n");
+        return;
 };
 
 void access_flag_fault_lvl3_handler(uint64_t fault_address, int level, bool lower_lvl){
@@ -392,4 +432,5 @@ void access_flag_fault_lvl3_handler(uint64_t fault_address, int level, bool lowe
         (void) lower_lvl;
         uart_verbose("Access flag fault handler called\r\n");
         set_page_access_flag(fault_address);
+        return;
 }

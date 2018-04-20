@@ -41,3 +41,36 @@ kernel (up to __end) is mapped to identity
 uart is paged to identity (GPIO BASE etc)
 
 No guaranties for other pages (see get unbound physical page)
+
+# Shareablity attributes #
+The meaning of Inner/Outer shareable (in clock descirptor attributes) is controled by the Cache Level ID register. See ARM ARM 2405
+Inner shareable stops somewhere between L1 and L7 caches, includes all cores.
+For now non-shareable shoudl be fine, but maybe to change for multicore ?
+
+# Caching #
+For I/O memory, we use Device policy as writes have side effects (ARM ARM 118) with nGnRnE (ie no optimizations) => this corresponds to an attribute of 0b00000000
+For normal memory (ARM ARM 116), write-through cachable is simpler as a write is performed immediatly in the main memory, so we avoid data sync issues -> to change later ?
+We use non transient, read-allocate, write-allocate by default but we'll save other profiles in MAIR for later anyway
+
+(se ARM ARM 2610 for the encoding)
+
+Content of MAIR_EL1 :
+
+AttrIndex |  Attribute | Meaning
+----------+------------+--------------
+     0    | 0000 0000  | Device nGnRnE
+     1    | 1011 1011  | Normal memory, Inner/Outer Write-Through Non-transient, Read-Allocate, Write-Allocate
+     2    | 0011 0011  | Normal memory, Inner/Outer Write-Through     Transient, Read-Allocate, Write-Allocate
+     3    | 1111 1111  | Normal memory, Inner/Outer Write-Back    Non-transient, Read-Allocate, Write-Allocate
+     4    | 0111 0111  | Normal memory, Inner/Outer Write-Back        Transient, Read-Allocate, Write-Allocate
+     5    | 0100 0100  | Normal memory, Non-cacheable
+     6    | Undef
+     7    | Undef
+For table cachning : it is set in init_cache
+(for enconding see ARM ARM 2693, for explanation see ARMv8-A Address Tranlsation : 18)
+00 Normal memory, Outer Non-cacheable
+01 Normal memory, Outer Write-Back Read-Allocate Write-Allocate Cacheable
+10 Normal memory, Outer Write-Through Read-Allocate No Write-Allocate Cacheable
+11 Normal memory, Outer Write-Back Read-Allocate No Write-Allocate Cacheable
+
+Currently it is 10
