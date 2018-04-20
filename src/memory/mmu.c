@@ -218,6 +218,8 @@ void populate_lvl2_table() {
 	}
 	//uart_debug("Populated lvl2 table\r\n");
 }
+
+/* For debugging purposes only */
 void one_step_mapping(){
 	uint64_t lvl2_address;
 	uart_debug("Beginning One step\r\n");
@@ -257,7 +259,7 @@ void check_identity_paging(uint64_t id_paging_size){
 /* Returns identity paging size */
 uint64_t identity_paging() {
 	populate_lvl2_table();
-	uart_debug("Binding identity\r\n");
+	uart_info("Binding identity\r\n");
 	block_attributes_sg1 ba = new_block_attributes_sg1(KERNEL_PAGE | ACCESS_FLAG_SET);
 	uint64_t id_paging_size;
 	asm volatile ("ldr %0, =__end" : "=r"(id_paging_size) : :);
@@ -268,12 +270,12 @@ uint64_t identity_paging() {
 			uart_verbose("Invalid status found at 0x%x : %d\r\n", physical_pnt, status);
 		assert(!status);
 	}
-	uart_debug("Binded indentity\r\n");
+	uart_info("Binded indentity\r\n");
 
 	uint64_t lvl2_address;
 	asm volatile ("mrs %0, TTBR0_EL1" : "=r"(lvl2_address) : :);
 
-	uart_debug("Invalidating remaining entries\r\n");
+	uart_info("Invalidating remaining entries\r\n");
 	uint64_t current_table_index = (id_paging_size / GRANULE) % 512;
 	for (uint64_t invalid_lvl2_table_entries_index =
 			  id_paging_size / (GRANULE * 512) + (current_table_index == 0 ? 0 : 1);
@@ -289,7 +291,7 @@ uint64_t identity_paging() {
         bind_address(GPIO_BASE,GPIO_BASE, ba);
 	bind_address(GPIO_BASE + 0x1000,GPIO_BASE + 0x1000, ba);
 	bind_address(GPIO_BASE + 0x15000,GPIO_BASE + 0x15000, ba);
-        uart_debug("Identity paging success\r\n");
+        uart_info("Identity paging success\r\n");
 	return id_paging_size;
 }
 
@@ -325,13 +327,14 @@ void init_physical_memory_map (uint64_t id_paging_size) {
 
 void c_init_mmu(){
     uint64_t id_paging_size = identity_paging();
+    /* Maybe remove the next line later */
     check_identity_paging(id_paging_size);
     init_physical_memory_map(id_paging_size);
     /* Stack Initialization */
     int status = get_new_page(GPIO_BASE - GRANULE, KERNEL_PAGE | ACCESS_FLAG_SET) & MASK(2, 0);
     if(status)
         uart_error("Error during stack initialization with status : %d\r\n", status);
-    uart_verbose("C MMU Init sucess\r\n");
+    uart_init("C MMU Init sucess\r\n");
 }
 
 
@@ -342,12 +345,13 @@ void c_init_mmu(){
 }
 
 void pmapdump(){
-            uart_verbose("Physical memory map structure at %x\r\n%x\r\n%x\r\n%x\r\n",(uint64_t) &physical_memory_map, (uint64_t)physical_memory_map.map, physical_memory_map.head, physical_memory_map.size);
+            uart_verbose("Physical memory map structure at %x\r\n%x\r\n%x\r\n%x\r\n",
+                         (uint64_t) &physical_memory_map, (uint64_t)physical_memory_map.map, physical_memory_map.head, physical_memory_map.size);
 }
 
 /* Returns bind_address return code */
 int get_new_page(uint64_t virtual_address, enum block_perm_config block_perm) {
-	uart_verbose("Get new page called\r\n");
+	uart_verbose("Get_new_page called\r\n");
 	uint64_t physical_address = get_unbound_physical_page();
         uart_verbose("Got a new physical page\r\n");
 	uint64_t status = bind_address(virtual_address, physical_address, new_block_attributes_sg1(block_perm));
@@ -362,7 +366,7 @@ void free_physical_page(uint64_t physical_addr) {
 }
 
 /* returns get_lvl3_address status */
-/* free the page from any inside address */
+/* free the page from any inside address : ie given any virtual address, frees the page that contains it */
 int free_virtual_page(uint64_t virtual_addr){
         uint64_t lvl3_entry_phys_address = get_lvl3_entry_phys_address(virtual_addr);
         set_invalid_entry(lvl3_entry_phys_address);
@@ -384,6 +388,6 @@ void translation_fault_handler(uint64_t fault_address, int level, bool lower_el)
 void access_flag_fault_lvl3_handler(uint64_t fault_address, int level, bool lower_lvl){
 	(void) level;
         (void) lower_lvl;
-        //uart_verbose("Access flag fault handler called\r\n");
+        uart_verbose("Access flag fault handler called\r\n");
         set_page_access_flag(fault_address);
 }
