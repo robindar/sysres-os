@@ -380,7 +380,7 @@ void translation_fault_handler(uint64_t fault_address, int level, bool lower_el)
 	(void) level;
         uart_verbose("Translation fault handler called\r\n");
 	if (!lower_el) {
-		get_new_page(fault_address, KERNEL_PAGE);
+		get_new_page(fault_address, KERNEL_PAGE | ACCESS_FLAG_SET);
 	}
         uart_verbose("Translation fault handler returns\r\n");
 };
