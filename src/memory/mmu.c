@@ -5,7 +5,7 @@ block_attributes_sg1 new_block_attributes_sg1(enum block_perm_config perm_config
   bas1.UXN = (perm_config >> 3) & 1;
   bas1.PXN = (perm_config >> 2) & 1;
   bas1.ContinuousBit = 0;
-  bas1.DirtyBit = 0;
+  bas1.DirtyBit = (perm_config >> 5) & 1;
   bas1.NotGlobal = 1;
   bas1.AccessFlag = (perm_config >> 4) & 1;
   /* Shareability
@@ -62,6 +62,19 @@ void set_invalid_entry(uint64_t entry_addr) {
 
 void set_identifier_table_entry(uint64_t entry_addr){
     AT(entry_addr) |= 0b11;
+}
+
+bool get_entry_dirty_bit(uint64_t entry){
+    return (entry >> 51) & 1;
+}
+
+bool get_dirty_bit_from_virtual_addr(uint64_t virtual_addr){
+    uint64_t physical_addr_lvl3 = get_lvl3_entry_phys_address(virtual_addr);
+    uint64_t status = physical_addr_lvl3 & MASK(2,0);
+    if (status)
+        uart_error("set_invalid_page : get_dirty_bit_from_virtual_addr for address 0x%x failed with exit status %d\r\n", virtual_addr, status);
+    assert(status == 0); /* i.e. no error in previous call */
+    return get_entry_dirty_bit(AT(physical_addr_lvl3));
 }
 
 void set_invalid_page(uint64_t virtual_addr) {
@@ -349,6 +362,7 @@ void pmapdump(){
                          (uint64_t) &physical_memory_map, (uint64_t)physical_memory_map.map, physical_memory_map.head, physical_memory_map.size);
 }
 
+
 /* Returns bind_address return code */
 int get_new_page(uint64_t virtual_address, enum block_perm_config block_perm) {
 	uart_verbose("Get_new_page called\r\n");
@@ -376,11 +390,16 @@ int free_virtual_page(uint64_t virtual_addr){
         return status;
 }
 
+/* Is called when a translation fault (lvl2 or lvl3) occurs */
+/* Selects a free physical page and binds it to the virtual address of the block containing the fault address */
+/* Sets the Access flag because if theis handler is called, an access have been made */
+/* Sets the Dirty Bit : indeed, as far as I understand, if a memory access is made, it must be a write as there is no meaninful content */
+/* (This may be different in another context, this can be managed using write permissions for instance : see ARM ARM 2168) */
 void translation_fault_handler(uint64_t fault_address, int level, bool lower_el){
 	(void) level;
         uart_verbose("Translation fault handler called\r\n");
 	if (!lower_el) {
-		get_new_page(fault_address, KERNEL_PAGE | ACCESS_FLAG_SET);
+		get_new_page(fault_address, KERNEL_PAGE | ACCESS_FLAG_SET | DIRTY_BIT_SET);
 	}
         uart_verbose("Translation fault handler returns\r\n");
 };
