@@ -19,7 +19,7 @@ block_attributes_sg1 new_block_attributes_sg1(enum block_perm_config perm_config
   bas1.AccessPermission = perm_config & 0b11;
   bas1.NonSecure = 1;
   /* Stage 1 memory attributes index field, cache related buisness, cf ARM ARM 2175) */
-  bas1.AttrIndex = DEVICE;/* cache disabled for now */
+  bas1.AttrIndex = cache_config;
   return bas1;
 }
 
@@ -365,7 +365,7 @@ void c_init_mmu(){
     /* Maybe remove the next line later */
     check_identity_paging(id_paging_size);
     init_physical_memory_map(id_paging_size);
-    //init_cache();
+    init_cache();
     /* Stack Initialization */
     int status = get_new_page(GPIO_BASE - GRANULE, KERNEL_PAGE | ACCESS_FLAG_SET, NORMAL_WT_NT) & MASK(2, 0);
     if(status)

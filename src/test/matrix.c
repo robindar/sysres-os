@@ -65,7 +65,7 @@ matrix new_product(matrix * a, matrix * b){
 void matrix_main()
 {
     uart_debug("Entering matrix test\r\n");
-    #define SZ 50
+    #define SZ 100
 
     matrix a, b, c;
 
