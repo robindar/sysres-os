@@ -3,6 +3,8 @@ MCPU     ?= cortex-a53
 MEMORY   ?= 1024
 MACHINE  ?= raspi3
 
+#Warning should be an AAtch64 gdb
+GDB          ?= gdb
 ARMTOOLCHAIN ?= aarch64-linux-gnu
 QEMU         ?= $(shell which qemu-system-aarch64 2>/dev/null)
 ADDQEMUFLAGS += -d int,mmu,page -D log/qemu.log
@@ -54,7 +56,10 @@ run: clean bin/$(FILENAME).elf
 
 gdb: clean bin/$(FILENAME).elf
 	@:$(call check-defined,QEMU,path to qemu executables)
-	$(QEMU) -s -S -m $(MEMORY) -M $(MACHINE) -serial mon:stdio --kernel bin/$(FILENAME).elf
+	$(QEMU) -s -S -m $(MEMORY) -M $(MACHINE) $(ADDQEMUFLAGS) -serial mon:stdio --kernel bin/$(FILENAME).elf
+
+stub:
+	$(GDB) bin/$(FILENAME).elf -tui -ex="target remote :1234"
 
 asm_dump: bin/$(FILENAME).elf
 	@:$(call check-defined,ARMTOOLCHAIN,path to ARM toolchain)
