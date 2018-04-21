@@ -361,6 +361,7 @@ void init_cache(){
 }
 
 void c_init_mmu(){
+    uart_info("Beginning C MMU initialization\r\n");
     uint64_t id_paging_size = identity_paging();
     /* Maybe remove the next line later */
     check_identity_paging(id_paging_size);
@@ -370,7 +371,7 @@ void c_init_mmu(){
     int status = get_new_page(GPIO_BASE - GRANULE, KERNEL_PAGE | ACCESS_FLAG_SET, NORMAL_WT_NT) & MASK(2, 0);
     if(status)
         uart_error("Error during stack initialization with status : %d\r\n", status);
-    uart_init("C MMU Init sucess\r\n");
+    uart_info("C MMU Init sucess\r\n");
 }
 
 
