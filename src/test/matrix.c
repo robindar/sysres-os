@@ -70,14 +70,12 @@ void matrix_main()
     matrix a, b, c;
 
     a = new_matrix(SZ ,SZ);
-    uart_debug("&a = 0x%x\r\n", (uint64_t) &a);
     fill_rand(&a);
 
     b = new_matrix(SZ ,SZ);
-    uart_debug("&b = 0x%x\r\n", (uint64_t) &b);
     fill_rand(&b);
 
     c = new_product(&a, &b);
-    print_matrix(&c);
+    //print_matrix(&c);
     uart_debug("Done matrix test\r\n");
 }

@@ -17,7 +17,8 @@ curr_el_sp0_sync:
         stp x12,x13, [sp, #-16]!
         stp x14,x15, [sp, #-16]!
         mov x8, 0
-        bl el1_sync_handler
+        //I changed from bl to b to preserve x30
+        b el1_sync_handler
 
 .balign 0x80
 curr_el_sp0_irq:
@@ -31,7 +32,7 @@ curr_el_sp0_irq:
         stp x14,x15, [sp, #-16]!
         mov x0, 1
         mov x1, 1
-        bl el1_irq_handler
+        b el1_irq_handler
 
 .balign 0x80
 curr_el_sp0_fiq:
@@ -45,7 +46,7 @@ curr_el_sp0_fiq:
         stp x14,x15, [sp, #-16]!
         mov x0, 1
         mov x1, 2
-        bl el1_fiq_handler
+        b el1_fiq_handler
 
 .balign 0x80
 curr_el_sp0_serror:
@@ -59,7 +60,7 @@ curr_el_sp0_serror:
         stp x14,x15, [sp, #-16]!
         mov x0, 1
         mov x1, 3
-        bl el1_serror_handler
+        b el1_serror_handler
 
 .balign 0x80
 curr_el_spx_sync:
@@ -72,7 +73,7 @@ curr_el_spx_sync:
         stp x12,x13, [sp, #-16]!
         stp x14,x15, [sp, #-16]!
         mov x8, 4
-        bl el1_sync_handler
+        b el1_sync_handler
 .balign 0x80
 curr_el_spx_irq:
         stp x0, x1,  [sp, #-16]!
@@ -85,7 +86,7 @@ curr_el_spx_irq:
         stp x14,x15, [sp, #-16]!
         mov x0, 1
         mov x1, 5
-        bl el1_irq_handler
+        b el1_irq_handler
 
 .balign 0x80
 curr_el_spx_fiq:
@@ -99,7 +100,7 @@ curr_el_spx_fiq:
         stp x14,x15, [sp, #-16]!
         mov x0, 1
         mov x1, 6
-        bl el1_fiq_handler
+        b el1_fiq_handler
 
 .balign 0x80
 curr_el_spx_serror:
@@ -113,7 +114,7 @@ curr_el_spx_serror:
         stp x14,x15, [sp, #-16]!
         mov x0, 1
         mov x1, 7
-        bl el1_serror_handler
+        b el1_serror_handler
 
  .balign 0x80
 lower_el_aarch64_sync:
@@ -126,7 +127,7 @@ lower_el_aarch64_sync:
         stp x12,x13, [sp, #-16]!
         stp x14,x15, [sp, #-16]!
         mov x8, 8
-        bl el1_sync_handler
+        b el1_sync_handler
 
 .balign 0x80
 lower_el_aarch64_irq:
@@ -140,7 +141,7 @@ lower_el_aarch64_irq:
         stp x14,x15, [sp, #-16]!
         mov x0, 1
         mov x1, 9
-        bl el1_irq_handler
+        b el1_irq_handler
 
 .balign 0x80
 lower_el_aarch64_fiq:
@@ -154,7 +155,7 @@ lower_el_aarch64_fiq:
         stp x14,x15, [sp, #-16]!
         mov x0, 1
         mov x1, 10
-        bl el1_fiq_handler
+        b el1_fiq_handler
 
 .balign 0x80
 lower_el_aarch64_serror:
@@ -168,7 +169,7 @@ lower_el_aarch64_serror:
         stp x14,x15, [sp, #-16]!
         mov x0, 1
         mov x1, 11
-        bl el1_serror_handler
+        b el1_serror_handler
 
 .balign 0x80
 lower_el_aarch32_sync:
@@ -181,7 +182,7 @@ lower_el_aarch32_sync:
         stp x12,x13, [sp, #-16]!
         stp x14,x15, [sp, #-16]!
         mov x8, 12
-        bl el1_sync_handler
+        b el1_sync_handler
 
 .balign 0x80
 lower_el_aarch32_irq:
@@ -195,7 +196,7 @@ lower_el_aarch32_irq:
         stp x14,x15, [sp, #-16]!
         mov x0, 1
         mov x1, 13
-        bl el1_irq_handler
+        b el1_irq_handler
 
 .balign 0x80
 lower_el_aarch32_fiq:
@@ -209,7 +210,7 @@ lower_el_aarch32_fiq:
         stp x14,x15, [sp, #-16]!
         mov x0, 1
         mov x1, 14
-        bl el1_fiq_handler
+        b el1_fiq_handler
 
 .balign 0x80
 lower_el_aarch32_serror:
@@ -223,9 +224,10 @@ lower_el_aarch32_serror:
         stp x14,x15, [sp, #-16]!
         mov x0, 1
         mov x1, 5
-        bl el1_serror_handler
+        b el1_serror_handler
 
 el1_sync_handler:
+        stp x29,x30, [sp, #-16]!//Save x29, x30
         mrs x9, spsr_el1        //Backup spsr_el1, elr_el1 as explained in the doc
         mrs x10, elr_el1
         stp x9, x10, [sp, #-16]!
@@ -247,6 +249,7 @@ el1_sync_handler:
         ldp x2, x3, [sp], #16
         msr spsr_el1, x2
         msr elr_el1, x3
+        ldp x29,x30, [sp], #16
         ldp x14,x15, [sp], #16
         ldp x12,x13, [sp], #16
         ldp x10,x11, [sp], #16
@@ -258,6 +261,7 @@ el1_sync_handler:
         eret
 
 el1_serror_handler:
+        stp x29,x30, [sp, #-16]!//Save x29, x30
         mrs x2, spsr_el1
         mrs x3, elr_el1
         stp x2, x3, [sp, #-16]!
@@ -267,6 +271,7 @@ el1_serror_handler:
         ldp x2, x3, [sp], #16
         msr spsr_el1, x2
         msr elr_el1, x3
+        ldp x29,x30, [sp], #16
         ldp x14,x15, [sp], #16
         ldp x12,x13, [sp], #16
         ldp x10,x11, [sp], #16
@@ -279,6 +284,7 @@ el1_serror_handler:
 
 
 el1_irq_handler:
+        stp x29,x30, [sp, #-16]!//Save x29, x30
         mrs x2, spsr_el1
         mrs x3, elr_el1
         stp x2, x3, [sp, #-16]!
@@ -286,6 +292,7 @@ el1_irq_handler:
         ldp x2, x3, [sp], #16
         msr spsr_el1, x2
         msr elr_el1, x3
+        ldp x29,x30, [sp], #16
         ldp x14,x15, [sp], #16
         ldp x12,x13, [sp], #16
         ldp x10,x11, [sp], #16
@@ -297,6 +304,7 @@ el1_irq_handler:
         eret
 
 el1_fiq_handler:
+        stp x29,x30, [sp, #-16]!//Save x29, x30
         mrs x2, spsr_el1
         mrs x3, elr_el1
         stp x2, x3, [sp, #-16]!
@@ -304,6 +312,7 @@ el1_fiq_handler:
         ldp x2, x3, [sp], #16
         msr spsr_el1, x2
         msr elr_el1, x3
+        ldp x29,x30, [sp], #16
         ldp x14,x15, [sp], #16
         ldp x12,x13, [sp], #16
         ldp x10,x11, [sp], #16

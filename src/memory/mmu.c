@@ -19,7 +19,7 @@ block_attributes_sg1 new_block_attributes_sg1(enum block_perm_config perm_config
   bas1.AccessPermission = perm_config & 0b11;
   bas1.NonSecure = 1;
   /* Stage 1 memory attributes index field, cache related buisness, cf ARM ARM 2175) */
-  bas1.AttrIndex = 0 * cache_config;
+  bas1.AttrIndex = DEVICE;/* cache disabled for now */
   return bas1;
 }
 
