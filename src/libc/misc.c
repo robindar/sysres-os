@@ -9,9 +9,16 @@ void delay(uint32_t count)
 
 uint32_t get_cpu_id(){
 	/*
+        DEPRECATED
 	uint32_t res;
 	asm("MRC p15,0,%0,c0,c0,5 ;":"=r"(res)::);
 	return (res & 0xFF);
 	*/
 	return 0;
+}
+
+uint64_t get_current_addr(){
+    int64_t variable = 0;
+    asm volatile("ADR %0, ." : "=r"(variable) : :);
+    return variable;
 }

@@ -11,5 +11,5 @@
 
 void delay(uint32_t count);
 uint32_t get_cpu_id();
-
+uint64_t get_current_address();
 #endif

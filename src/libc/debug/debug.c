@@ -9,11 +9,3 @@ void abort(){
                 ((uint64_t)__builtin_return_address(0)) - 4);
     while(1){};
 }
-
-void assert(int b){
-    if(b == 0){
-        uart_error("Assertion failed at : %x\r\n",
-                    ((uint64_t)__builtin_return_address(0)) - 4);
-        abort();
-    }
-}
