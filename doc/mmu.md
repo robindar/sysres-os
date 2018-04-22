@@ -45,7 +45,7 @@ No guaranties for other pages (see get unbound physical page)
 # Shareablity attributes #
 The meaning of Inner/Outer shareable (in clock descirptor attributes) is controled by the Cache Level ID register. See ARM ARM 2405
 Inner shareable stops somewhere between L1 and L7 caches, includes all cores.
-For now non-shareable shoudl be fine, but maybe to change for multicore ?
+For now inner-shareable shoudl be fine, but maybe to change for multicore ? -> to change to inner
 
 # Caching #
 For I/O memory, we use Device policy as writes have side effects (ARM ARM 118) with nGnRnE (ie no optimizations) => this corresponds to an attribute of 0b00000000

@@ -18,6 +18,28 @@ matrix new_matrix (int row_nb, int col_nb){
     return m;
 }
 
+matrix new_identity(int row_nb, int col_nb){
+    int i,j;
+    matrix m = new_matrix(row_nb, col_nb);
+    for (i=0; i < m.row; i++){
+        for (j=0; j < m.col; j++){
+            *(m.m + i*m.col + j) = (i == j);
+        }
+    }
+    return m;
+}
+
+matrix new_zero(int row_nb, int col_nb){
+    int i,j;
+    matrix m = new_matrix(row_nb, col_nb);
+    for (i=0; i < m.row; i++){
+        for (j=0; j < m.col; j++){
+            *(m.m + i*m.col + j) = 0;
+        }
+    }
+    return m;
+}
+
 
 void free_matrix (matrix * m){
     kfree(m->m);
@@ -39,8 +61,20 @@ void print_matrix(const matrix * m){
         for (j=0; j<m->col; j++){
             uart_printf("%d ", *(m->m + i*m->col + j));
         }
-        uart_printf("\n");
+        uart_printf("\r\n");
     }
+}
+
+bool equal(const matrix a, const matrix b){
+    bool res = (a.col == b.col) && (a.row == b.row);
+    assert((a.col == b.col) && (a.row == b.row));
+    int i,j;
+    for (i=0; i < a.row; i++){
+        for (j=0; j < a.col; j++){
+            res &= (*(a.m + i*a.col + j) == *(b.m + i*b.col + j));
+        }
+    }
+    return res;
 }
 
 matrix new_product(matrix * a, matrix * b){
@@ -49,7 +83,7 @@ matrix new_product(matrix * a, matrix * b){
         abort();
     }
     int n = a->col;
-    matrix c = new_matrix(a->row, b->col);
+    matrix c = new_zero(a->row, b->col);
     int i, j, k;
     for(i = 0; i < c.row; i++){
         for(j = 0; j < c.col; j++){
@@ -65,17 +99,14 @@ matrix new_product(matrix * a, matrix * b){
 void matrix_main()
 {
     uart_debug("Entering matrix test\r\n");
-    #define SZ 100
+    #define SZ 10
 
     matrix a, b, c;
 
-    a = new_matrix(SZ ,SZ);
-    fill_rand(&a);
-
+    a = new_identity(SZ ,SZ);
     b = new_matrix(SZ ,SZ);
     fill_rand(&b);
-
     c = new_product(&a, &b);
-    //print_matrix(&c);
+    assert(equal(b, c));
     uart_debug("Done matrix test\r\n");
 }

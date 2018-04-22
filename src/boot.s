@@ -14,6 +14,11 @@
 // r2 -> 0x00000100 - start of ATAGS
 // preserve these registers as argument for kernel_main
 _start:
+        //Invalidate all instruction cache entries (recomended in ARMv8-A Programmer Guide p115)
+        IC IALLU
+        /* Clear TLB at EL1 (ARMv8-A Address Translation p27) (has to be done at level > EL1)*/
+        TLBI ALLE1
+        ISB
 	// Setup the stack.
 	mov sp, #0x8000
 

@@ -57,6 +57,10 @@ void set_entry_access_flag(uint64_t entry_addr) {
 	AT(entry_addr) |= (1 << 10);
 }
 
+void clear_entry_access_flag(uint64_t entry_addr){
+    AT(entry_addr) &= ~(1 << 10);
+}
+
 void set_invalid_entry(uint64_t entry_addr) {
 	AT(entry_addr) &= MASK(63, 1);
 }
@@ -332,8 +336,9 @@ void init_physical_memory_map (uint64_t id_paging_size) {
 /* Cache initialization */
 void init_cache(){
     uart_info("Initializing Cache\r\n");
-    /* Invalidate cache entries */
-    asm volatile("IC IALLU");
+    /* Invalidate instruction cache entries (see ARMv8-A Programmer Guide : 115)*/
+    /* asm volatile("IC IALLU"); -> this hasn't got anthing to do here ?*/
+
     /* Init MAIR_EL1 according to choices described in doc/mmu.md for page caching*/
     uint64_t reg = 0;
     reg |= ((uint64_t) 0b10111011) << (8 * 1);
@@ -407,7 +412,20 @@ void free_physical_page(uint64_t physical_addr) {
 int free_virtual_page(uint64_t virtual_addr){
         uint64_t lvl3_entry_phys_address = get_lvl3_entry_phys_address(virtual_addr);
         uint64_t physical_address = get_address_sg1(lvl3_entry_phys_address);
+        /* Clear TLB entry (note this clears only for the current ASID) (see ARMv8-A Address Translation p27)*/
+        asm volatile("DSB ISHST");
+        if((AT(lvl3_entry_phys_address) & MASK(9,8)) != 0)
+            /* ie if Shareability >= Inner Shareable, then invalidate Inner Sahreable */
+            asm volatile("TLBI VAE1IS, %0" : : "r"(virtual_addr/GRANULE) :);
+        else
+            asm volatile("TLBI VALE1  , %0" : : "r"(virtual_addr/GRANULE) :);
+        asm volatile("DSB ISH");
+        asm volatile("ISB");
         set_invalid_entry(lvl3_entry_phys_address);
+        AT(lvl3_entry_phys_address) = 0;
+        assert(!is_block_entry(AT(lvl3_entry_phys_address), 3));
+        //clear_entry_access_flag(lvl3_entry_phys_address);
+
         int status = lvl3_entry_phys_address & MASK(2, 0);
         uart_verbose(
             "Freeing page containing virtual address 0x%x at physical address 0x%x\r\n"

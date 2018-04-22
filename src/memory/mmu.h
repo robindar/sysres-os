@@ -94,6 +94,10 @@ void set_table_attributes_sg1(uint64_t addr, table_attributes_sg1 ta1);
 
 void init_table_entry_sg1(uint64_t entry_addr, uint64_t inner_addr);
 
+bool is_block_entry(uint64_t entry, int lvl);
+
+bool is_table_entry(uint64_t entry);
+
 uint64_t get_address_sg1(uint64_t entry_addr);
 
 uint64_t get_lvl3_entry_phys_address(uint64_t virtual_addr);
@@ -134,4 +138,5 @@ struct physical_memory_map_t {
 };
 
 void translation_fault_handler(uint64_t fault_address, int level, bool lower_el);
+int free_virtual_page(uint64_t virtual_addr);
 #endif
