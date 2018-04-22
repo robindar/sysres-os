@@ -137,6 +137,8 @@ struct physical_memory_map_t {
 	uint32_t head, size;
 };
 
+int get_new_page(uint64_t virtual_address, enum block_perm_config block_perm, enum block_cache_config cache_config);
 void translation_fault_handler(uint64_t fault_address, int level, bool lower_el);
+void access_flag_fault_lvl3_handler(uint64_t fault_address, int level, bool lower_lvl);
 int free_virtual_page(uint64_t virtual_addr);
 #endif

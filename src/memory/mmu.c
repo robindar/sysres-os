@@ -422,10 +422,6 @@ int free_virtual_page(uint64_t virtual_addr){
         asm volatile("DSB ISH");
         asm volatile("ISB");
         set_invalid_entry(lvl3_entry_phys_address);
-        AT(lvl3_entry_phys_address) = 0;
-        assert(!is_block_entry(AT(lvl3_entry_phys_address), 3));
-        //clear_entry_access_flag(lvl3_entry_phys_address);
-
         int status = lvl3_entry_phys_address & MASK(2, 0);
         uart_verbose(
             "Freeing page containing virtual address 0x%x at physical address 0x%x\r\n"

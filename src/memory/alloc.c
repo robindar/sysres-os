@@ -32,7 +32,7 @@ void * ksbrk(int increment) {
         }
         res += increment;
     }
-    return (void *) res;
+    return (void *) ((uint64_t )res);
 }
 
 uint64_t get_heap_begin(){
