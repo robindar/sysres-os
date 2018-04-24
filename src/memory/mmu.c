@@ -6,7 +6,8 @@ block_attributes_sg1 new_block_attributes_sg1(enum block_perm_config perm_config
   bas1.PXN = (perm_config >> 2) & 1;
   bas1.ContinuousBit = 0;
   bas1.DirtyBit = 0;
-  bas1.NotGlobal = 1;
+  /* For kernel, we set as global */
+  bas1.NotGlobal = (perm_config == KERNEL_PAGE);
   bas1.AccessFlag = (perm_config >> 4) & 1;
   /* Shareability
    * 00 : Non-shareable
@@ -213,14 +214,20 @@ uint64_t get_physical_address(uint64_t virtual_addr){
 	return get_address_sg1(get_lvl3_entry_phys_address(virtual_addr)) + (virtual_addr & MASK(11, 0));
 }
 
-void populate_lvl2_table() {
-	uint64_t lvl2_address, lvl3_address;
+uint64_t get_lvl2_address(){
+    	uint64_t lvl2_address;
 	asm volatile ("mrs %0, TTBR0_EL1" : "=r"(lvl2_address) : :);
-	lvl3_address = lvl2_address + 2 * 0x1000; /* leave space for lvl2 tables TTBR0/1 */
+        /* Remove ASID (these func will be reused for procs) */
+        lvl2_address &= MASK(47,1);
+        return lvl2_address;
+}
+
+void populate_lvl2_table(uint64_t lvl2_address, uint64_t lvl3_address) {
+    /* TODO : improve this -> tables should be allocated on demand : change bind_address */
 	assert(lvl2_address % GRANULE == 0);
-	//uart_debug("lvl2_address = %x\r\nlvl3_address = %x\r\n", lvl2_address, lvl3_address);
-	for (int i=0; i<512; i++) {
-		init_table_entry_sg1(lvl2_address + i * 8, lvl3_address + i * GRANULE);
+        assert(lvl3_address % GRANULE == 0);
+	for (int i=0; i<N_TABLE_ENTRIES; i++) {
+		init_table_entry_sg1(lvl2_address + i * sizeof(uint64_t), lvl3_address + i * GRANULE);
 	}
 	//uart_debug("Populated lvl2 table\r\n");
 }
@@ -264,7 +271,6 @@ void check_identity_paging(uint64_t id_paging_size){
 
 /* Returns identity paging size */
 uint64_t identity_paging() {
-	populate_lvl2_table();
 	uart_info("Binding identity\r\n");
         /* The caching polic may be wrong here */
 	block_attributes_sg1 ba = new_block_attributes_sg1(KERNEL_PAGE | ACCESS_FLAG_SET, NORMAL_WT_NT);
@@ -280,8 +286,7 @@ uint64_t identity_paging() {
 	}
 	uart_info("Binded indentity\r\n");
 
-	uint64_t lvl2_address;
-	asm volatile ("mrs %0, TTBR0_EL1" : "=r"(lvl2_address) : :);
+	uint64_t lvl2_address = get_lvl2_address();
 
 	uart_info("Invalidating remaining entries\r\n");
 	uint64_t current_table_index = (id_paging_size / GRANULE) % 512;
@@ -365,18 +370,32 @@ void init_cache(){
     asm volatile("msr tcr_el1, %0" : : "r"(reg) :);
 }
 
-void c_init_mmu(){
-    uart_info("Beginning C MMU initialization\r\n");
-    uint64_t id_paging_size = identity_paging();
+/* Does MMU Initialization : for kernel (pid = 0) assumes TTBR0_EL1 is set */
+/* For now only cares of TTBR0_EL1 */
+/* This function takes an argument pid to avoid code duplication */
+/* If pid  == 0, then this is kernel initialization */
+/* And the two other param are UNDEFINED */
+/* Otherwise this is for a process and the two other args must be used*/
+/* Moreover in this case TTBR0_EL1 is NOT yet set */
+void c_init_mmu(uint64_t pid, uint64_t lvl2_address, uint64_t lvl3_address){
+    uart_info("Beginning C MMU initialization for process of PID %d\r\n", pid);
+    if(pid == 0){
+        lvl2_address = get_lvl2_address();
+        lvl3_address = lvl2_address + 2 * 0x1000; /* leave space for lvl2 tables TTBR0/1 */
+    }
+    populate_lvl2_table(lvl2_address, lvl3_address);
+    uint64_t id_paging_size = identity_paging(lvl2_address);
     /* Maybe remove the next line later */
     check_identity_paging(id_paging_size);
-    init_physical_memory_map(id_paging_size);
-    init_cache();
+    if(pid == 0){
+        init_physical_memory_map(id_paging_size);
+        init_cache();
+    }
     /* Stack Initialization */
     int status = get_new_page(GPIO_BASE - GRANULE, KERNEL_PAGE | ACCESS_FLAG_SET, NORMAL_WT_NT) & MASK(2, 0);
     if(status)
         uart_error("Error during stack initialization with status : %d\r\n", status);
-    uart_info("C MMU Init sucess\r\n");
+    uart_info("C MMU Init sucess for process of PID %d\r\n", pid);
 }
 
 
@@ -434,6 +453,8 @@ void translation_fault_handler(uint64_t fault_address, int level, bool lower_el)
 	(void) level;
         uart_verbose("Translation fault handler called\r\n");
         assert(fault_address >= get_heap_begin());
+        /* WARNING : our handling of the cache is extremely dangerous and NEEDS to be fixed */
+        /* Indeed, right now if the kernel overflows the only page of cache allowed, (even without the next assert) it will get bogged down at curr_el_spx_sync because there will be no stack available : so maybe alloc two pages for the stack at init and that's all ? */
         assert(fault_address < get_heap_begin() + get_end_offset());
 	if (!lower_el) {
 		get_new_page(fault_address, KERNEL_PAGE | ACCESS_FLAG_SET, NORMAL_WT_NT);

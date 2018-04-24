@@ -149,25 +149,3 @@ void c_el2_handler(){
     abort();
 }
 
-void c_el1_svc_aarch64_handler(uint64_t x0,uint64_t x1,uint64_t x2,uint64_t x3,
-                               uint64_t x4,uint64_t x5,uint64_t x6,uint64_t x7){
-    //Syscall arguments
-    (void) x0;
-    (void) x1;
-    (void) x2;
-    (void) x3;
-    (void) x4;
-    (void) x5;
-    (void) x6;
-    (void) x7;
-    uint64_t esr_el1;
-    asm ("mrs %0, esr_el1":"=r"(esr_el1)::);
-    uint16_t syscall = (esr_el1 & 0x1ffffff); //get back syscall code
-    switch(syscall){
-        default:
-            uart_error("Error no syscall SVC Aarch64 corresponding to code %d\r\n", syscall);
-            display_esr_eln_info(esr_el1);
-            uart_error("Aborting...\r\n");
-            abort();
-    }
-}

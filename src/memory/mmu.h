@@ -12,8 +12,9 @@
 #define MASK(f,t) ((f < t) ? _MASK_(t,f) : _MASK_(f,t))
 #define _MASK_(f,t) ( f == 63 ? 0 : (one_u64 << (f+1)) ) - (one_u64 << t)
 
-#define RAM_SIZE 1073741824 /* 1 Gio */
-#define GRANULE (0x1000)
+#define RAM_SIZE         1073741824 /* 1 Gio */
+#define GRANULE            (0x1000)
+#define N_TABLE_ENTRIES         512
 
 enum block_perm_config {
   /* UXN : bit 3
@@ -120,6 +121,7 @@ uint64_t get_lvl3_entry_phys_address(uint64_t virtual_addr);
  */
 int bind_address(uint64_t virtual_addr, uint64_t physical_addr, block_attributes_sg1 ba);
 
+void populate_lvl2_table(uint64_t lvl3_address);
 uint64_t identity_paging();
 
 void c_init_mmu();
