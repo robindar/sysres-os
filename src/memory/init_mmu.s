@@ -23,6 +23,7 @@ init_mmu:
 
 	mov X28, X30 // Preserve caller-saved link register
 	bl uart_init
+        mov X0, XZR  //PID to pass as first arg to c_init_mmu
 	bl c_init_mmu
 	mov X30, X28 // Restore link register
 

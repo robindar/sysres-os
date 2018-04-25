@@ -249,10 +249,10 @@ lower_el_el1_sync_handler:
         stp x26, x27,  [sp, #-16]!
         stp x28, x29,  [sp, #-16]!
         stp x30, x30,  [sp, #-16]!      //Stack has to be 16-byte aligned
-        mrs spel, xzr                   //Switch to SP_EL0 stack pointer
+        msr spsel, xzr                   //Switch to SP_EL0 stack pointer
         mov x0, sp                      //Backup SP_EL0
-        add x2, xzr, xzr, #1
-        msr spel, x2                    //Switch back to SP_EL1
+        mov x2, #1
+        msr spsel, x2                    //Switch back to SP_EL1
         mrs x1, elr_el1
         mrs x2, spsr_el1                //Backup of pstate
         mov x3, sp                      //Handler SP

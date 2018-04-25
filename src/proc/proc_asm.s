@@ -7,10 +7,10 @@ restore_and_run:
         //x3: pstate
         msr spsr_el1, x3
         msr  elr_el1, x1
-        mrs spel, xzr                   //Switch to SP_EL0 stack pointer
-        mov sp, x1                      //Restore SP_EL0
-        add x2, xzr, xzr, #1
-        msr spel, x2                    //Switch back to SP_EL1
+        msr spsel, xzr                     //Switch to SP_EL0 stack pointer
+        mov sp, x1                         //Restore SP_EL0
+        mov x2, #1
+        msr spsel, x2                      //Switch back to SP_EL1
         ldr x30,     [x0], #(-8)           //Post-incr
         ldp x28,x29, [x0], #(-16)
         ldp x26,x27, [x0], #(-16)
@@ -26,5 +26,5 @@ restore_and_run:
         ldp x6, x7,  [x0], #(-16)
         ldp x4, x5,  [x0], #(-16)
         ldp x2, x3,  [x0], #(-16)
-        ldp x0, x1,  [x0], #(-16)
+        ldp x0, x1,  [x0,  #(-16)]        //No write-back here (thx AS for the warning)
         eret

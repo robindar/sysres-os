@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 
+
 /* We will follow first the specifications of the micro-kernel given during the classs */
 
 /* we have 16 bits for ASID according to memory/init_mmu.s */
@@ -32,7 +33,7 @@ typedef struct {
 } context;
 
 typedef struct {
-    uint64_t ttbr0_el1;
+    uint64_t ttbr0_el1;         /* Contains ASID = PID and lvl2_base_address */
     /* For now we don't use ttbr1_el1*/
 } mem_conf;
 

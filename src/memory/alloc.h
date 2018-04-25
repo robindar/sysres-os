@@ -5,6 +5,9 @@
 #include "mmu.h"
 #include "../libc/uart/uart.h"
 
+/* Stack begins at #3F200000 see boot.s */
+#define STACK_BEGIN GPIO_BASE
+
 void * ksbrk(int increment);
 void init_alloc();
 void * kmalloc(size_t size);

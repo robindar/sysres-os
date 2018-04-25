@@ -1,4 +1,7 @@
 #include "proc.h"
+#include "proc_mmu.h"
+#include "../libc/uart/uart.h"
+#include "../libc/debug/debug.h"
 
 system_state sys_state;
 
@@ -16,7 +19,7 @@ void save_context(uint64_t sp, uint64_t elr_el1, uint64_t pstate, uint64_t handl
     ctx->pc = elr_el1;
     ctx->pstate = pstate;
     for(int i = 0; i < N_REG; i++){
-        ctx->registers[i] = AT(sp + (N_REG + 1 - i) * sizeof(uint64_t))
+        ctx->registers[i] = AT(handler_sp + (N_REG + 1 - i) * sizeof(uint64_t));
     }
     return;
 }
@@ -24,8 +27,10 @@ void save_context(uint64_t sp, uint64_t elr_el1, uint64_t pstate, uint64_t handl
 /* Run again process */
 /* Assumes MMU, Stack... is already set up */
 __attribute__((__noreturn__))
-void run_again_process(const proc_descriptor * proc){
+void run_process(const proc_descriptor * proc){
+    assert(proc->state == RUNNABLE)
     sys_state.curr_pid = proc -> pid;
+    switch_to_proc_mmu(proc);
     restore_and_run(&(proc->saved_context.registers[N_REG - 1]),
                     proc->saved_context.pc,
                     proc->saved_context.sp,
@@ -34,8 +39,20 @@ void run_again_process(const proc_descriptor * proc){
 
 /**** START PROCESS ****/
 
-int start_process(const proc_descriptor * proc){
-    
+uint64_t new_el0_pstate(){
+    uint64_t pstate = 0;
+    /* Enable exceptions */
+    pstate |= MASK(9,6);
+    /* Mode = 0 -> EL0 */
+    return pstate;
+}
+
+/* Start a new process (set up MMU, stack...) */
+__attribute__((__noreturn__))
+int start_process(proc_descriptor * proc){
+    /* Here proc param ttbr0 and sp are set */
+    proc->saved_context.pstate = new_el0_pstate();
+    run_process(proc);
 }
 
 
