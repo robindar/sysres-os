@@ -15,7 +15,7 @@
         abort(); \
     }; \
 
-
+__attribute__((__noreturn__))
 void abort();
 
 #endif

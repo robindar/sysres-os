@@ -124,7 +124,7 @@ int bind_address(uint64_t virtual_addr, uint64_t physical_addr, block_attributes
 void populate_lvl2_table(uint64_t lvl3_address);
 uint64_t identity_paging();
 
-void c_init_mmu();
+uint64_t c_init_mmu();
 
 void pmapdump();
 

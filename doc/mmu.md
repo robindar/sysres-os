@@ -74,3 +74,7 @@ For table cachning : it is set in init_cache
 11 Normal memory, Outer Write-Back Read-Allocate No Write-Allocate Cacheable
 
 Currently it is 10
+
+# Process tables #
+After a few botched attemps (kmalloc, identity physical page -> fails because of alignement constraints of TTBR0 see http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.ddi0500d/BABHEIGF.html), I will try the simplest solution : we reserve a zone large enough at the end of the kernel for every procs. However, lvl2 tables has to be 0X200000 = 512 * GRANULE aligned. Thus, to save space, each lvl2 tables will have at most 511 valid lvl2 entries (as we have space for only 511 lvl3 tables) so that we can fit 1 lvl2 table + the associated 511 lvl3 tables in 0x200000. We this we can map until 0x3fe00000 instead of 0x40000000 which is enough (as we don't use memory after GPIO_BASE).
+However having 256 slots uses the whole RAM, so we'll stick to 32 active process for now. (1/16 of 1 Gb)

@@ -1,10 +1,10 @@
 .globl init_mmu
 init_mmu:
 	// Enable MMU
-	ldr X3, =__TTBR0_EL1_start
+	ldr X3, = __mmu_tables_start ;
 	msr TTBR0_EL1, X3 // Set TTBR0
-	ldr X3, =__TTBR1_EL1_start
-	msr TTBR1_EL1, X3 // Set TTBR1
+        // mov X3, XZR
+	// msr TTBR1_EL1, X3 // Set TTBR1 -> deprecated
 	// Set TCR
 	mrs X27, TCR_EL1
 	//orr X3, X3, #(1 << 38) // TBI1 -> Top byte ignored in address calculation
