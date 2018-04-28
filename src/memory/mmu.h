@@ -16,6 +16,7 @@
 #define GRANULE            (0x1000)
 #define N_TABLE_ENTRIES         512
 
+/* see doc/mmu.md for details */
 enum block_perm_config {
   /* UXN : bit 3
    * PXN : bit 2
@@ -23,7 +24,8 @@ enum block_perm_config {
   ACCESS_FLAG_SET = 0b10000,
   KERNEL_PAGE     = 0b00000, /* EL0 --X, ELn RWX : UXN(0) PXN(0) AP(00) */
   USER_PAGE       = 0b00001, /* EL0 RWX, ELn RW- : UXN(0) PXN(0) AP(01) */
-  IO_PAGE         = 0b01001  /* EL0 RW-, ELn RW- : UXN(1) PXN(0) AP(01) */
+  IO_PAGE         = 0b01001, /* EL0 RW-, ELn RW- : UXN(1) PXN(0) AP(01) (note : this implies PXN = 1)*/
+  DATA_PAGE       = 0b01001  /* EL0 RW-, ELn RW- : UXN(1) PXN(0) AP(01) (same)*/
 };
 
 enum block_cache_config {

@@ -18,7 +18,7 @@ block_attributes_sg1 new_block_attributes_sg1(enum block_perm_config perm_config
   bas1.ContinuousBit = 0;
   bas1.DirtyBit = 0;
   /* For kernel, we set as global */
-  bas1.NotGlobal = (perm_config == KERNEL_PAGE);
+  bas1.NotGlobal = ((perm_config & MASK(3, 0)) == KERNEL_PAGE || (perm_config & MASK(3, 0)) == IO_PAGE);
   bas1.AccessFlag = (perm_config >> 4) & 1;
   /* Shareability
    * 00 : Non-shareable
@@ -206,7 +206,7 @@ void init_new_lvl3_table(uint64_t lvl2_entry_phys_address){
         lvl3_entry_phys_address = get_address_sg1(lvl2_entry_phys_address) + i * sizeof(uint64_t);
         set_invalid_entry(lvl3_entry_phys_address);
     }
-    uart_verbose("Initialization done\r\n");
+    uart_verbose("New table initialization done\r\n");
 }
 
 int bind_address(uint64_t virtual_addr, uint64_t physical_addr, block_attributes_sg1 ba) {
@@ -295,14 +295,25 @@ void check_identity_paging(uint64_t id_paging_size){
 uint64_t identity_paging() {
 	uart_info("Binding identity\r\n");
         /* The caching polic may be wrong here */
-	block_attributes_sg1 ba = new_block_attributes_sg1(KERNEL_PAGE | ACCESS_FLAG_SET, NORMAL_WT_NT);
-        ba.ContinuousBit = 1;
-	uint64_t id_paging_size;
+	block_attributes_sg1 kernel_ba = new_block_attributes_sg1(KERNEL_PAGE | ACCESS_FLAG_SET, NORMAL_WT_NT);
+        kernel_ba.ContinuousBit = 1;
+        block_attributes_sg1 data_ba   = new_block_attributes_sg1(  DATA_PAGE | ACCESS_FLAG_SET, NORMAL_WT_NT);
+        data_ba.ContinuousBit = 1;
+	uint64_t id_paging_size, data_start, bss_end;
 	asm volatile ("ldr %0, =__end" : "=r"(id_paging_size) : :);
+        asm volatile ("ldr %0, =__data_start" : "=r"(data_start) : :);
+        asm volatile ("ldr %0, =__bss_end" : "=r"(bss_end) : :);
         uart_verbose("Id paging size : 0x%x\r\n", id_paging_size);
+        uart_verbose("__data_start : 0x%x\r\n", data_start);
+        uart_verbose("__bss_end : 0x%x\r\n", bss_end);
+        int status;
 	for (uint64_t physical_pnt = 0; physical_pnt < id_paging_size; physical_pnt += GRANULE) {
 		//uart_debug("Before bind\r\n");
-		int status = bind_address(physical_pnt, physical_pnt, ba);
+        	if((data_start <= physical_pnt) && (physical_pnt < bss_end))
+                    /* This is a data zone */
+                    status = bind_address(physical_pnt, physical_pnt, data_ba);
+                else
+                    status = bind_address(physical_pnt, physical_pnt, kernel_ba);
 		if (status)
 			uart_verbose("Invalid status found at 0x%x : %d\r\n", physical_pnt, status);
 		assert(!status);
@@ -321,7 +332,7 @@ uint64_t identity_paging() {
 		for ( uint64_t i = 0; i < 512 - current_table_index; i++)
 			set_invalid_page(id_paging_size + i * GRANULE);
 
-	ba = new_block_attributes_sg1(IO_PAGE | ACCESS_FLAG_SET, DEVICE);
+	block_attributes_sg1 ba = new_block_attributes_sg1(IO_PAGE | ACCESS_FLAG_SET, DEVICE);
         /* Warning Access falg is set to 1 : you can set it to zero if you want but make sure the Access flag fault handling uses no uart o/w you'll end up in an infinite loop */
         bind_address(GPIO_BASE,GPIO_BASE, ba);
 	bind_address(GPIO_BASE + 0x1000,GPIO_BASE + 0x1000, ba);
@@ -362,7 +373,7 @@ void init_physical_memory_map (uint64_t id_paging_size) {
 
 /* Cache initialization */
 void init_cache(){
-    uart_info("Initializing Cache\r\n");
+    uart_info("Beginning Cache Initialization\r\n");
     /* Invalidate instruction cache entries (see ARMv8-A Programmer Guide : 115)*/
     /* asm volatile("IC IALLU"); -> this hasn't got anthing to do here ?*/
 
@@ -390,6 +401,8 @@ void init_cache(){
     reg |= (config << 10);
     reg |= (config << 8);
     asm volatile("msr tcr_el1, %0" : : "r"(reg) :);
+    /* All entries are invalidated in boot.s (has to be done at > EL1) */
+    uart_info("Cache Initialization Done\r\n");
 }
 
 uint64_t c_init_mmu(uint64_t pid){
@@ -410,10 +423,10 @@ uint64_t c_init_mmu(uint64_t pid){
     }
     /* Stack Initialization */
     /* TODO : add another page and distinguish between segfault/stack overflow/heap overflow + handle perm faults from EL0...*/
-    int status = get_new_page(GPIO_BASE - GRANULE, KERNEL_PAGE | ACCESS_FLAG_SET, NORMAL_WT_NT) & MASK(2, 0);
+    int status = get_new_page(GPIO_BASE - GRANULE, DATA_PAGE | ACCESS_FLAG_SET, NORMAL_WT_NT) & MASK(2, 0);
     if(status)
         uart_error("Error during stack initialization with status : %d\r\n", status);
-    uart_info("C MMU Init sucess for process of PID %d\r\n", pid);
+    uart_info("C MMU Init success for process of PID %d\r\n", pid);
     return lvl2_table_address;
 }
 
@@ -474,16 +487,16 @@ int free_virtual_page(uint64_t virtual_addr){
 void translation_fault_handler(uint64_t fault_address, int level, bool lower_el){
 	(void) level;
         /* For now no distnction between EL, the same difference is TTBR0 which is detected auto */
-        (void) lower_el;
         uart_verbose("Translation fault handler called\r\n");
         set_lvl2_address_from_TTBR0_EL1();
         assert(fault_address >= get_heap_begin());
         /* WARNING : our handling of the stack is extremely dangerous and NEEDS to be fixed */
         /* Indeed, right now if the kernel overflows the only page of cache allowed, (even without the next assert) it will get bogged down at curr_el_spx_sync because there will be no stack available : so maybe alloc two pages for the stack at init and that's all ? */
         assert(fault_address < get_heap_begin() + get_end_offset());
-	if (!lower_el) {
+	if (!lower_el)
 		get_new_page(fault_address, KERNEL_PAGE | ACCESS_FLAG_SET, NORMAL_WT_NT);
-	}
+        else
+        	get_new_page(fault_address, KERNEL_PAGE | ACCESS_FLAG_SET, NORMAL_WT_NT);
         uart_verbose("Translation fault handler returns\r\n");
         return;
 };

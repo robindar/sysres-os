@@ -4,12 +4,14 @@
 #include "../libc/debug/debug.h"
 #include "../memory/alloc.h"
 #include "../usr/init.h"
+#include "../interrupt.h"
 
 /* ASM function deined in proc_asm.s */
 __attribute__((__noreturn__))
 extern void restore_and_run(uint64_t reg_end, uint64_t pc, uint64_t sp, uint64_t pstate);
 
-system_state sys_state;
+/* Warning : do not remove the "static" here o/w it leads to strange behavior */
+static system_state sys_state;
 
 uint64_t new_el0_pstate(){
     uint64_t pstate = 0;
@@ -19,7 +21,7 @@ uint64_t new_el0_pstate(){
     return pstate;
 }
 
-proc_descriptor new_proc_descriptor(int pid, int parent_pid, int priority, void * code_addr){
+proc_descriptor new_proc_descriptor(int pid, int parent_pid, int priority, uint64_t pc){
     proc_descriptor proc;
     proc.pid                  = pid;
     proc.parent_pid           = parent_pid;
@@ -29,7 +31,7 @@ proc_descriptor new_proc_descriptor(int pid, int parent_pid, int priority, void 
     proc.mem_conf.initialized = false;
     proc.saved_context.pstate = new_el0_pstate();
     proc.saved_context.sp     = STACK_BEGIN;
-    proc.saved_context.pc     = (uint64_t) code_addr;
+    proc.saved_context.pc     = pc;
     /* We kindly initialize the registers to zero */
     for(int i = 0; i < N_REG; i++) proc.saved_context.registers[i] = 0;
     return proc;
@@ -46,9 +48,18 @@ void init_proc(){
     }
     sys_state.procs[0].state = KERNEL;
     /* Backup TTBR0_EL1 for kernel */
-    asm volatile("mrs %0, TTBR0_EL1" : "=r"(sys_state.procs[0].mem_conf.ttbr0_el1));
+    uint64_t ttbr0_el1;
+    asm volatile("mrs %0, TTBR0_EL1" : "=r"(ttbr0_el1));
+    sys_state.procs[0].mem_conf.ttbr0_el1 = ttbr0_el1;
     /* Create init process (PID 1) */
-    sys_state.procs[0] = new_proc_descriptor(1, 1, 0, (void *) proc0_main);
+    /* Don't understand what the hell was happening with this : p was set to zero while gdb says &proc0_main != 0 */
+    /* void (*p)() = 42; */
+    /* p = &proc0_main; */
+    /* uart_debug("p = %d", (int)p); */
+    /* -> Workaround :*/
+    uint64_t p;
+    asm volatile("ldr %0, =proc0_main" : "=r"(p));
+    sys_state.procs[1] = new_proc_descriptor(1, 1, 0, p);
     uart_info("Proc initialization done\r\n");
     return;
 }
@@ -70,12 +81,13 @@ void save_context(uint64_t sp, uint64_t elr_el1, uint64_t pstate, uint64_t handl
 /* Assumes MMU, Stack... is already set up */
 __attribute__((__noreturn__))
 void run_process(const proc_descriptor * proc){
-    uart_verbose("Runnig process with PID %d\r\n", proc->pid);
+    uart_verbose("Preparing to run process with PID %d with code at address 0x%x\r\n", proc->pid, proc->saved_context.pc);
     assert(proc->pid > 0);      /* Should not be used on kernel */
     assert(proc->state == RUNNABLE);
     assert(proc->mem_conf.initialized);
     sys_state.curr_pid = proc -> pid;
     switch_to_proc_mmu(proc);
+    uart_debug("Successfully switched to process MMU\r\n");
     restore_and_run((uint64_t) &(proc->saved_context.registers[N_REG - 1]),
                     proc->saved_context.pc,
                     proc->saved_context.sp,

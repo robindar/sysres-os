@@ -10,9 +10,13 @@ SECTIONS
 	{
 		KEEP(*(.text.boot))
 			*(.text)
-			*(.rodata)
 	}
-
+        . = ALIGN(0x1000);
+        __data_start = .;
+	.rodata ALIGN(0x1000) : AT(ADDR(.rodata) - 0x00000000)
+	{
+		*(.rodata)
+	}
 	.data ALIGN(0x1000) : AT(ADDR(.data) - 0x00000000)
 	{
 		*(.data)

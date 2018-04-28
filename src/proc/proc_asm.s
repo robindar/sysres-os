@@ -8,10 +8,12 @@ restore_and_run:
         msr spsr_el1, x3
         msr  elr_el1, x1
         msr spsel, xzr                     //Switch to SP_EL0 stack pointer
-        mov sp, x1                         //Restore SP_EL0
+        mov sp, x2                         //Restore SP_EL0
         mov x2, #1
         msr spsel, x2                      //Switch back to SP_EL1
         ldr x30,     [x0], #(-8)           //Post-incr
+        //For now
+        ldr x30, =halt
         ldp x28,x29, [x0], #(-16)
         ldp x26,x27, [x0], #(-16)
         ldp x24,x25, [x0], #(-16)
