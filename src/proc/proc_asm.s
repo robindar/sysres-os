@@ -11,9 +11,9 @@ restore_and_run:
         mov sp, x2                         //Restore SP_EL0
         mov x2, #1
         msr spsel, x2                      //Switch back to SP_EL1
+        ldr x2, =0x3F200000                //Clean EL1 stack
+        mov sp, x2
         ldr x30,     [x0], #(-8)           //Post-incr
-        //For now
-        ldr x30, =halt
         ldp x28,x29, [x0], #(-16)
         ldp x26,x27, [x0], #(-16)
         ldp x24,x25, [x0], #(-16)

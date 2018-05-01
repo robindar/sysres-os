@@ -57,8 +57,8 @@ void display_error(char * msg, uint64_t el, uint64_t nb, uint64_t spsr_el, uint6
 
 void instruction_abort_handler(uint64_t el, uint64_t nb, uint64_t spsr_el, uint64_t elr_el, uint64_t esr_el, uint64_t far_el, bool lower_el){
     uart_verbose(
-        "Instruction Abort Handler Called with FAR : 0x%x\r\nAt ELR : 0x%x\r\n",
-        far_el, elr_el);
+        "Instruction Abort Handler Called with FAR : 0x%x\r\nAt ELR : 0x%x from %s\r\n",
+        far_el, elr_el, (lower_el ? "lower EL" : "same EL"));
         uint64_t instruction_fault_status_code = esr_el & MASK(5,0);
         switch(instruction_fault_status_code){
         case 0b110:             /* Transltation fault level 2 */
@@ -77,8 +77,8 @@ void instruction_abort_handler(uint64_t el, uint64_t nb, uint64_t spsr_el, uint6
 
 void data_abort_handler(uint64_t el, uint64_t nb, uint64_t spsr_el, uint64_t elr_el, uint64_t esr_el, uint64_t far_el, bool lower_el){
     uart_verbose(
-        "Data Abort Handler Called with FAR : 0x%x\r\nAt ELR : 0x%x\r\n",
-        far_el, elr_el);
+        "Data Abort Handler Called with FAR : 0x%x\r\nAt ELR : 0x%x from %s\r\n",
+        far_el, elr_el, (lower_el ? "lower EL" : "same EL"));
         uint64_t data_fault_status_code = esr_el & MASK(5,0);
         switch(data_fault_status_code){
         case 0b110:             /* Transltation fault level 2 */

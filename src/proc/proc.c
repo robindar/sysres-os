@@ -6,9 +6,7 @@
 #include "../usr/init.h"
 #include "../interrupt.h"
 
-/* ASM function deined in proc_asm.s */
-__attribute__((__noreturn__))
-extern void restore_and_run(uint64_t reg_end, uint64_t pc, uint64_t sp, uint64_t pstate);
+
 
 /* Warning : do not remove the "static" here o/w it leads to strange behavior */
 static system_state sys_state;
@@ -60,6 +58,7 @@ void init_proc(){
     uint64_t p;
     asm volatile("ldr %0, =proc0_main" : "=r"(p));
     sys_state.procs[1] = new_proc_descriptor(1, 1, 0, p);
+    assert(sys_state.procs[1].pid == 1);
     uart_info("Proc initialization done\r\n");
     return;
 }
@@ -79,6 +78,7 @@ void save_context(uint64_t sp, uint64_t elr_el1, uint64_t pstate, uint64_t handl
 
 /* Run again process */
 /* Assumes MMU, Stack... is already set up */
+/* QUESTION : who's going to clean the stacks of these funcs ? */
 __attribute__((__noreturn__))
 void run_process(const proc_descriptor * proc){
     uart_verbose("Preparing to run process with PID %d with code at address 0x%x\r\n", proc->pid, proc->saved_context.pc);
@@ -86,12 +86,7 @@ void run_process(const proc_descriptor * proc){
     assert(proc->state == RUNNABLE);
     assert(proc->mem_conf.initialized);
     sys_state.curr_pid = proc -> pid;
-    switch_to_proc_mmu(proc);
-    uart_debug("Successfully switched to process MMU\r\n");
-    restore_and_run((uint64_t) &(proc->saved_context.registers[N_REG - 1]),
-                    proc->saved_context.pc,
-                    proc->saved_context.sp,
-                    proc->saved_context.pstate);
+    switch_to_proc(proc);
 }
 
 /**** START PROCESS ****/
@@ -100,6 +95,7 @@ void run_process(const proc_descriptor * proc){
 __attribute__((__noreturn__))
 int start_process(proc_descriptor * proc){
     assert(!proc->mem_conf.initialized);
+    assert(proc->pid > 0);
     proc->mem_conf.initialized = true;
     /* We expect at least pc to be set */
     /* Here proc param ttbr0 and sp are set */

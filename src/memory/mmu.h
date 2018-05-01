@@ -18,7 +18,8 @@
 
 /* see doc/mmu.md for details */
 enum block_perm_config {
-  /* UXN : bit 3
+  /* AF  : bit 4
+   * UXN : bit 3
    * PXN : bit 2
    * AP  : bits 1-0 */
   ACCESS_FLAG_SET = 0b10000,
@@ -128,6 +129,9 @@ uint64_t identity_paging();
 
 uint64_t c_init_mmu();
 
+uint64_t get_ASID_from_TTBR0(uint64_t ttbr0_el1);
+uint64_t get_lvl2_table_address_from_TTBR0(uint64_t ttbr0_el1);
+
 void pmapdump();
 
 /* Physical memory map strcture
@@ -145,4 +149,6 @@ int get_new_page(uint64_t virtual_address, enum block_perm_config block_perm, en
 void translation_fault_handler(uint64_t fault_address, int level, bool lower_el);
 void access_flag_fault_lvl3_handler(uint64_t fault_address, int level, bool lower_lvl);
 int free_virtual_page(uint64_t virtual_addr);
+
+uint64_t get_page_permission(uint64_t virtual_addr);
 #endif

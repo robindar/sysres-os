@@ -4,7 +4,7 @@
 /* Thus we'll be able to manipulate tables without the need for TTBRO_EL1 to be set*/
 /* Which is necessary for MMU initialization for procs */
 /* So we can keep kernel MMU on during setup */
-uint64_t lvl2_table_address;
+static uint64_t lvl2_table_address;
 /* This variable has to be set at each entry point of this file :*/
 /* - c_init_mmu */
 /* - translation_fault_handler */
@@ -18,7 +18,7 @@ block_attributes_sg1 new_block_attributes_sg1(enum block_perm_config perm_config
   bas1.ContinuousBit = 0;
   bas1.DirtyBit = 0;
   /* For kernel, we set as global */
-  bas1.NotGlobal = ((perm_config & MASK(3, 0)) == KERNEL_PAGE || (perm_config & MASK(3, 0)) == IO_PAGE);
+  bas1.NotGlobal = ((perm_config & MASK(3, 0)) == KERNEL_PAGE || (perm_config & MASK(3, 0)) == IO_PAGE) ? 0 : 1;
   bas1.AccessFlag = (perm_config >> 4) & 1;
   /* Shareability
    * 00 : Non-shareable
@@ -220,6 +220,7 @@ int bind_address(uint64_t virtual_addr, uint64_t physical_addr, block_attributes
                 init_block_and_page_entry_sg1(lvl3_entry_phys_address, physical_addr, ba);
                 return 0;
             case 5:
+                /* Invalid table : we init a new one */
                 lvl2_entry_phys_address = get_lvl2_table_entry_phys_address(virtual_addr);
                 init_new_lvl3_table(lvl2_entry_phys_address);
                 /* Should not lead to infinite loops */
@@ -234,9 +235,18 @@ uint64_t get_physical_address(uint64_t virtual_addr){
 	return get_address_sg1(get_lvl3_entry_phys_address(virtual_addr)) + (virtual_addr & MASK(11, 0));
 }
 
+uint64_t get_ASID_from_TTBR0(uint64_t ttbr0_el1){
+    return (ttbr0_el1 & MASK(63, 48)) >> 48;
+}
+
+uint64_t get_lvl2_table_address_from_TTBR0(uint64_t ttbr0_el1){
+    return (ttbr0_el1 & MASK(47,1));
+}
+
 void set_lvl2_address_from_TTBR0_EL1(){
     	uint64_t lvl2_address;
 	asm volatile ("mrs %0, TTBR0_EL1" : "=r"(lvl2_address) : :);
+        uart_verbose("Setting global var lvl2_table_address for ASID %d\r\n", get_ASID_from_TTBR0(lvl2_address));
         /* Remove ASID (these func will be reused for procs) */
         lvl2_address &= MASK(47,1);
         lvl2_table_address = lvl2_address;
@@ -289,6 +299,8 @@ void check_identity_paging(uint64_t id_paging_size){
 		}
 	}
 	uart_debug("Checked identity paging\r\n");
+        lvl3_entry_phys_addr = get_lvl3_entry_phys_address(0x7208);
+        uart_debug("0x7000 entry : %b\r\n", AT(lvl3_entry_phys_addr));
 }
 
 /* Returns identity paging size */
@@ -297,8 +309,9 @@ uint64_t identity_paging() {
         /* The caching polic may be wrong here */
 	block_attributes_sg1 kernel_ba = new_block_attributes_sg1(KERNEL_PAGE | ACCESS_FLAG_SET, NORMAL_WT_NT);
         kernel_ba.ContinuousBit = 1;
-        block_attributes_sg1 data_ba   = new_block_attributes_sg1(  DATA_PAGE | ACCESS_FLAG_SET, NORMAL_WT_NT);
-        data_ba.ContinuousBit = 1;
+        /* TODO : switch back to DATA_PAGE */
+        block_attributes_sg1 data_ba   = new_block_attributes_sg1(  USER_PAGE | ACCESS_FLAG_SET, NORMAL_WT_NT);
+        data_ba.ContinuousBit = 0;
 	uint64_t id_paging_size, data_start, bss_end;
 	asm volatile ("ldr %0, =__end" : "=r"(id_paging_size) : :);
         asm volatile ("ldr %0, =__data_start" : "=r"(data_start) : :);
@@ -311,6 +324,7 @@ uint64_t identity_paging() {
 		//uart_debug("Before bind\r\n");
         	if((data_start <= physical_pnt) && (physical_pnt < bss_end))
                     /* This is a data zone */
+                    /* Note : bss_end and data_start have to be GRANULE aligned */
                     status = bind_address(physical_pnt, physical_pnt, data_ba);
                 else
                     status = bind_address(physical_pnt, physical_pnt, kernel_ba);
@@ -411,6 +425,7 @@ uint64_t c_init_mmu(uint64_t pid){
     uint64_t mmu_tables_start;
     asm volatile("ldr %0, =__mmu_tables_start" : "=r"(mmu_tables_start) : :);
     lvl2_table_address = mmu_tables_start + pid * N_TABLE_ENTRIES * GRANULE;
+    uart_verbose("Lvl2 table address : 0x%x\r\n", lvl2_table_address);
     populate_lvl2_table(lvl2_table_address + GRANULE);
     uint64_t id_paging_size = identity_paging();
     /* Maybe remove the next line later */
@@ -487,16 +502,16 @@ int free_virtual_page(uint64_t virtual_addr){
 void translation_fault_handler(uint64_t fault_address, int level, bool lower_el){
 	(void) level;
         /* For now no distnction between EL, the same difference is TTBR0 which is detected auto */
-        uart_verbose("Translation fault handler called\r\n");
+        uart_verbose("Translation fault handler called at %s\r\n", lower_el ? "lower EL" : "same EL");
         set_lvl2_address_from_TTBR0_EL1();
         assert(fault_address >= get_heap_begin());
         /* WARNING : our handling of the stack is extremely dangerous and NEEDS to be fixed */
         /* Indeed, right now if the kernel overflows the only page of cache allowed, (even without the next assert) it will get bogged down at curr_el_spx_sync because there will be no stack available : so maybe alloc two pages for the stack at init and that's all ? */
-        assert(fault_address < get_heap_begin() + get_end_offset());
+        /* assert(fault_address < get_heap_begin() + get_end_offset()); */
 	if (!lower_el)
 		get_new_page(fault_address, KERNEL_PAGE | ACCESS_FLAG_SET, NORMAL_WT_NT);
         else
-        	get_new_page(fault_address, KERNEL_PAGE | ACCESS_FLAG_SET, NORMAL_WT_NT);
+        	get_new_page(fault_address, USER_PAGE | ACCESS_FLAG_SET, NORMAL_WT_NT);
         uart_verbose("Translation fault handler returns\r\n");
         return;
 };
@@ -508,4 +523,10 @@ void access_flag_fault_lvl3_handler(uint64_t fault_address, int level, bool lowe
         set_lvl2_address_from_TTBR0_EL1();
         set_page_access_flag(fault_address);
         return;
+}
+
+uint64_t get_page_permission(uint64_t virtual_addr){
+    set_lvl2_address_from_TTBR0_EL1();
+    uint64_t lvl3_entry_phys_addr = get_lvl3_entry_phys_address(virtual_addr);
+    return (AT(lvl3_entry_phys_addr) & MASK(7,6)) >> 6;
 }

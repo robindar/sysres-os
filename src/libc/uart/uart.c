@@ -14,6 +14,17 @@ extern void PUT32 ( unsigned int, unsigned int );
 extern unsigned int GET32 ( unsigned int );
 extern void dummy ( unsigned int );
 
+
+/* void PUT32 ( unsigned int addr, unsigned int data){ */
+/*     *((uint32_t *) addr) = (uint32_t) data; */
+/* } */
+/* unsigned int GET32 ( unsigned int addr){ */
+/*     return *((uint32_t *) addr); */
+/* } */
+/* void dummy ( unsigned int addr __attribute__((unused))){ */
+/*     return; */
+/* } */
+
 #define GPFSEL1         (GPIO_BASE + 0x00000004)
 #define GPSET0          (GPIO_BASE + 0x0000001C)
 #define GPCLR0          (GPIO_BASE + 0x00000028)

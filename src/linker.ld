@@ -21,13 +21,13 @@ SECTIONS
 	{
 		*(.data)
 	}
-
 	__bss_start = .;
 	.bss : AT(ADDR(.bss) - 0x00000000)
 	{
 		bss = .;
 		*(.bss)
 	}
+        . = ALIGN(0x1000);
 	__bss_end = .;
 	. = ALIGN(0x200000); /* Ensure bits [20:0] are 0 (cf. ARM ARM 2727) */
 	__mmu_tables_start = .;
