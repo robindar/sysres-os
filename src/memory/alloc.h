@@ -1,8 +1,10 @@
 #ifndef ALLOC_H
 #define ALLOC_H
-#include <stdint.h>
 #include <stddef.h>
+#include <stdint.h>
+#include <unistd.h>
 #include "mmu.h"
+#include "../libc/string.h"
 #include "../libc/uart/uart.h"
 
 void * ksbrk(int increment);

@@ -28,14 +28,20 @@ void syscall_test() {
 
 void malloc_test() {
     uart_debug("Entering malloc test\r\n");
+    uart_debug("Allocating uint64 dynamically\r\n");
     uint64_t * p = (uint64_t *) kmalloc(sizeof(uint64_t));
+    uart_debug("Modifying memory at pointer location (should allocate new page)\r\n");
     *p = 42;
+    uart_debug("*p = %d (should be 42)\r\n", *p);
+    uart_debug("Freeing virtual page\r\n");
     free_virtual_page((uint64_t) p);
+    uart_debug("Accessing freed page, should trigger Translation Fault\r\n");
     *p = 43;                    /* Should cause an Tranlsation Fault again */
+    uart_debug("Trying kmalloc with an array\r\n");
     char * array = (char *) kmalloc(GRANULE * sizeof(char));
     array[GRANULE - 1] = 42;
     uart_debug("p = 0x%x\r\narray = 0x%x\r\n",p, array);
-    ksbrk(-((int)(GRANULE * sizeof(char) + sizeof(uint64_t))));
-    uart_debug("Done malloc test\r\n");
-
+    kfree(p);
+    kfree(array);
+    uart_debug("Done testing malloc\r\n");
 }
