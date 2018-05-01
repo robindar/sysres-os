@@ -7,308 +7,308 @@
 .balign 0x800
 Vector_table_el3:
 curr_el_sp0_sync:
-        stp x0, x1,  [sp, #-16]!
-        stp x2, x3,  [sp, #-16]!
-        stp x4, x5,  [sp, #-16]!
-        stp x6, x7,  [sp, #-16]!
-        stp x8, x9,  [sp, #-16]!
-        stp x10,x11, [sp, #-16]!
-        stp x12,x13, [sp, #-16]!
-        stp x14,x15, [sp, #-16]!
-        mov x0, 3
-        mov x1, 0
-        b el3_sync_handler
+    stp x0, x1,  [sp, #-16]!
+    stp x2, x3,  [sp, #-16]!
+    stp x4, x5,  [sp, #-16]!
+    stp x6, x7,  [sp, #-16]!
+    stp x8, x9,  [sp, #-16]!
+    stp x10,x11, [sp, #-16]!
+    stp x12,x13, [sp, #-16]!
+    stp x14,x15, [sp, #-16]!
+    mov x0, 3
+    mov x1, 0
+    b el3_sync_handler
 
 .balign 0x80
 curr_el_sp0_irq:
-        stp x0, x1,  [sp, #-16]!
-        stp x2, x3,  [sp, #-16]!
-        stp x4, x5,  [sp, #-16]!
-        stp x6, x7,  [sp, #-16]!
-        stp x8, x9,  [sp, #-16]!
-        stp x10,x11, [sp, #-16]!
-        stp x12,x13, [sp, #-16]!
-        stp x14,x15, [sp, #-16]!
-        mov x0, 3
-        mov x1, 1
-        b el3_irq_handler
+    stp x0, x1,  [sp, #-16]!
+    stp x2, x3,  [sp, #-16]!
+    stp x4, x5,  [sp, #-16]!
+    stp x6, x7,  [sp, #-16]!
+    stp x8, x9,  [sp, #-16]!
+    stp x10,x11, [sp, #-16]!
+    stp x12,x13, [sp, #-16]!
+    stp x14,x15, [sp, #-16]!
+    mov x0, 3
+    mov x1, 1
+    b el3_irq_handler
 
 .balign 0x80
 curr_el_sp0_fiq:
-        stp x0, x1,  [sp, #-16]!
-        stp x2, x3,  [sp, #-16]!
-        stp x4, x5,  [sp, #-16]!
-        stp x6, x7,  [sp, #-16]!
-        stp x8, x9,  [sp, #-16]!
-        stp x10,x11, [sp, #-16]!
-        stp x12,x13, [sp, #-16]!
-        stp x14,x15, [sp, #-16]!
-        mov x0, 3
-        mov x1, 2
-        b el3_fiq_handler
+    stp x0, x1,  [sp, #-16]!
+    stp x2, x3,  [sp, #-16]!
+    stp x4, x5,  [sp, #-16]!
+    stp x6, x7,  [sp, #-16]!
+    stp x8, x9,  [sp, #-16]!
+    stp x10,x11, [sp, #-16]!
+    stp x12,x13, [sp, #-16]!
+    stp x14,x15, [sp, #-16]!
+    mov x0, 3
+    mov x1, 2
+    b el3_fiq_handler
 
 .balign 0x80
 curr_el_sp0_serror:
-        stp x0, x1,  [sp, #-16]!
-        stp x2, x3,  [sp, #-16]!
-        stp x4, x5,  [sp, #-16]!
-        stp x6, x7,  [sp, #-16]!
-        stp x8, x9,  [sp, #-16]!
-        stp x10,x11, [sp, #-16]!
-        stp x12,x13, [sp, #-16]!
-        stp x14,x15, [sp, #-16]!
-        mov x0, 3
-        mov x1, 3
-        b el3_serror_handler
+    stp x0, x1,  [sp, #-16]!
+    stp x2, x3,  [sp, #-16]!
+    stp x4, x5,  [sp, #-16]!
+    stp x6, x7,  [sp, #-16]!
+    stp x8, x9,  [sp, #-16]!
+    stp x10,x11, [sp, #-16]!
+    stp x12,x13, [sp, #-16]!
+    stp x14,x15, [sp, #-16]!
+    mov x0, 3
+    mov x1, 3
+    b el3_serror_handler
 
 .balign 0x80
 curr_el_spx_sync:
-        stp x0, x1,  [sp, #-16]!
-        stp x2, x3,  [sp, #-16]!
-        stp x4, x5,  [sp, #-16]!
-        stp x6, x7,  [sp, #-16]!
-        stp x8, x9,  [sp, #-16]!
-        stp x10,x11, [sp, #-16]!
-        stp x12,x13, [sp, #-16]!
-        stp x14,x15, [sp, #-16]!
-        mov x0, 3
-        mov x1, 4
-        b el3_sync_handler
+    stp x0, x1,  [sp, #-16]!
+    stp x2, x3,  [sp, #-16]!
+    stp x4, x5,  [sp, #-16]!
+    stp x6, x7,  [sp, #-16]!
+    stp x8, x9,  [sp, #-16]!
+    stp x10,x11, [sp, #-16]!
+    stp x12,x13, [sp, #-16]!
+    stp x14,x15, [sp, #-16]!
+    mov x0, 3
+    mov x1, 4
+    b el3_sync_handler
 .balign 0x80
 curr_el_spx_irq:
-        stp x0, x1,  [sp, #-16]!
-        stp x2, x3,  [sp, #-16]!
-        stp x4, x5,  [sp, #-16]!
-        stp x6, x7,  [sp, #-16]!
-        stp x8, x9,  [sp, #-16]!
-        stp x10,x11, [sp, #-16]!
-        stp x12,x13, [sp, #-16]!
-        stp x14,x15, [sp, #-16]!
-        mov x0, 3
-        mov x1, 5
-        b el3_irq_handler
+    stp x0, x1,  [sp, #-16]!
+    stp x2, x3,  [sp, #-16]!
+    stp x4, x5,  [sp, #-16]!
+    stp x6, x7,  [sp, #-16]!
+    stp x8, x9,  [sp, #-16]!
+    stp x10,x11, [sp, #-16]!
+    stp x12,x13, [sp, #-16]!
+    stp x14,x15, [sp, #-16]!
+    mov x0, 3
+    mov x1, 5
+    b el3_irq_handler
 
 .balign 0x80
 curr_el_spx_fiq:
-        stp x0, x1,  [sp, #-16]!
-        stp x2, x3,  [sp, #-16]!
-        stp x4, x5,  [sp, #-16]!
-        stp x6, x7,  [sp, #-16]!
-        stp x8, x9,  [sp, #-16]!
-        stp x10,x11, [sp, #-16]!
-        stp x12,x13, [sp, #-16]!
-        stp x14,x15, [sp, #-16]!
-        mov x0, 3
-        mov x1, 6
-        b el3_fiq_handler
+    stp x0, x1,  [sp, #-16]!
+    stp x2, x3,  [sp, #-16]!
+    stp x4, x5,  [sp, #-16]!
+    stp x6, x7,  [sp, #-16]!
+    stp x8, x9,  [sp, #-16]!
+    stp x10,x11, [sp, #-16]!
+    stp x12,x13, [sp, #-16]!
+    stp x14,x15, [sp, #-16]!
+    mov x0, 3
+    mov x1, 6
+    b el3_fiq_handler
 
 .balign 0x80
 curr_el_spx_serror:
-        stp x0, x1,  [sp, #-16]!
-        stp x2, x3,  [sp, #-16]!
-        stp x4, x5,  [sp, #-16]!
-        stp x6, x7,  [sp, #-16]!
-        stp x8, x9,  [sp, #-16]!
-        stp x10,x11, [sp, #-16]!
-        stp x12,x13, [sp, #-16]!
-        stp x14,x15, [sp, #-16]!
-        mov x0, 3
-        mov x1, 7
-        b el3_serror_handler
+    stp x0, x1,  [sp, #-16]!
+    stp x2, x3,  [sp, #-16]!
+    stp x4, x5,  [sp, #-16]!
+    stp x6, x7,  [sp, #-16]!
+    stp x8, x9,  [sp, #-16]!
+    stp x10,x11, [sp, #-16]!
+    stp x12,x13, [sp, #-16]!
+    stp x14,x15, [sp, #-16]!
+    mov x0, 3
+    mov x1, 7
+    b el3_serror_handler
 
  .balign 0x80
 lower_el_aarch64_sync:
-        stp x0, x1,  [sp, #-16]!
-        stp x2, x3,  [sp, #-16]!
-        stp x4, x5,  [sp, #-16]!
-        stp x6, x7,  [sp, #-16]!
-        stp x8, x9,  [sp, #-16]!
-        stp x10,x11, [sp, #-16]!
-        stp x12,x13, [sp, #-16]!
-        stp x14,x15, [sp, #-16]!
-        mov x0, 3
-        mov x1, 8
-        b el3_sync_handler
+    stp x0, x1,  [sp, #-16]!
+    stp x2, x3,  [sp, #-16]!
+    stp x4, x5,  [sp, #-16]!
+    stp x6, x7,  [sp, #-16]!
+    stp x8, x9,  [sp, #-16]!
+    stp x10,x11, [sp, #-16]!
+    stp x12,x13, [sp, #-16]!
+    stp x14,x15, [sp, #-16]!
+    mov x0, 3
+    mov x1, 8
+    b el3_sync_handler
 
 .balign 0x80
 lower_el_aarch64_irq:
-        stp x0, x1,  [sp, #-16]!
-        stp x2, x3,  [sp, #-16]!
-        stp x4, x5,  [sp, #-16]!
-        stp x6, x7,  [sp, #-16]!
-        stp x8, x9,  [sp, #-16]!
-        stp x10,x11, [sp, #-16]!
-        stp x12,x13, [sp, #-16]!
-        stp x14,x15, [sp, #-16]!
-        mov x0, 3
-        mov x1, 9
-        b el3_irq_handler
+    stp x0, x1,  [sp, #-16]!
+    stp x2, x3,  [sp, #-16]!
+    stp x4, x5,  [sp, #-16]!
+    stp x6, x7,  [sp, #-16]!
+    stp x8, x9,  [sp, #-16]!
+    stp x10,x11, [sp, #-16]!
+    stp x12,x13, [sp, #-16]!
+    stp x14,x15, [sp, #-16]!
+    mov x0, 3
+    mov x1, 9
+    b el3_irq_handler
 
 .balign 0x80
 lower_el_aarch64_fiq:
-        stp x0, x1,  [sp, #-16]!
-        stp x2, x3,  [sp, #-16]!
-        stp x4, x5,  [sp, #-16]!
-        stp x6, x7,  [sp, #-16]!
-        stp x8, x9,  [sp, #-16]!
-        stp x10,x11, [sp, #-16]!
-        stp x12,x13, [sp, #-16]!
-        stp x14,x15, [sp, #-16]!
-        mov x0, 3
-        mov x1, 10
-        b el3_fiq_handler
+    stp x0, x1,  [sp, #-16]!
+    stp x2, x3,  [sp, #-16]!
+    stp x4, x5,  [sp, #-16]!
+    stp x6, x7,  [sp, #-16]!
+    stp x8, x9,  [sp, #-16]!
+    stp x10,x11, [sp, #-16]!
+    stp x12,x13, [sp, #-16]!
+    stp x14,x15, [sp, #-16]!
+    mov x0, 3
+    mov x1, 10
+    b el3_fiq_handler
 
 .balign 0x80
 lower_el_aarch64_serror:
-        stp x0, x1,  [sp, #-16]!
-        stp x2, x3,  [sp, #-16]!
-        stp x4, x5,  [sp, #-16]!
-        stp x6, x7,  [sp, #-16]!
-        stp x8, x9,  [sp, #-16]!
-        stp x10,x11, [sp, #-16]!
-        stp x12,x13, [sp, #-16]!
-        stp x14,x15, [sp, #-16]!
-        mov x0, 3
-        mov x1, 11
-        b el3_serror_handler
+    stp x0, x1,  [sp, #-16]!
+    stp x2, x3,  [sp, #-16]!
+    stp x4, x5,  [sp, #-16]!
+    stp x6, x7,  [sp, #-16]!
+    stp x8, x9,  [sp, #-16]!
+    stp x10,x11, [sp, #-16]!
+    stp x12,x13, [sp, #-16]!
+    stp x14,x15, [sp, #-16]!
+    mov x0, 3
+    mov x1, 11
+    b el3_serror_handler
 
 .balign 0x80
 lower_el_aarch32_sync:
-        stp x0, x1,  [sp, #-16]!
-        stp x2, x3,  [sp, #-16]!
-        stp x4, x5,  [sp, #-16]!
-        stp x6, x7,  [sp, #-16]!
-        stp x8, x9,  [sp, #-16]!
-        stp x10,x11, [sp, #-16]!
-        stp x12,x13, [sp, #-16]!
-        stp x14,x15, [sp, #-16]!
-        mov x0, 3
-        mov x1, 12
-        b el3_sync_handler
+    stp x0, x1,  [sp, #-16]!
+    stp x2, x3,  [sp, #-16]!
+    stp x4, x5,  [sp, #-16]!
+    stp x6, x7,  [sp, #-16]!
+    stp x8, x9,  [sp, #-16]!
+    stp x10,x11, [sp, #-16]!
+    stp x12,x13, [sp, #-16]!
+    stp x14,x15, [sp, #-16]!
+    mov x0, 3
+    mov x1, 12
+    b el3_sync_handler
 
 .balign 0x80
 lower_el_aarch32_irq:
-        stp x0, x1,  [sp, #-16]!
-        stp x2, x3,  [sp, #-16]!
-        stp x4, x5,  [sp, #-16]!
-        stp x6, x7,  [sp, #-16]!
-        stp x8, x9,  [sp, #-16]!
-        stp x10,x11, [sp, #-16]!
-        stp x12,x13, [sp, #-16]!
-        stp x14,x15, [sp, #-16]!
-        mov x0, 3
-        mov x1, 13
-        b el3_irq_handler
+    stp x0, x1,  [sp, #-16]!
+    stp x2, x3,  [sp, #-16]!
+    stp x4, x5,  [sp, #-16]!
+    stp x6, x7,  [sp, #-16]!
+    stp x8, x9,  [sp, #-16]!
+    stp x10,x11, [sp, #-16]!
+    stp x12,x13, [sp, #-16]!
+    stp x14,x15, [sp, #-16]!
+    mov x0, 3
+    mov x1, 13
+    b el3_irq_handler
 
 .balign 0x80
 lower_el_aarch32_fiq:
-        stp x0, x1,  [sp, #-16]!
-        stp x2, x3,  [sp, #-16]!
-        stp x4, x5,  [sp, #-16]!
-        stp x6, x7,  [sp, #-16]!
-        stp x8, x9,  [sp, #-16]!
-        stp x10,x11, [sp, #-16]!
-        stp x12,x13, [sp, #-16]!
-        stp x14,x15, [sp, #-16]!
-        mov x0, 3
-        mov x1, 14
-        b el3_fiq_handler
+    stp x0, x1,  [sp, #-16]!
+    stp x2, x3,  [sp, #-16]!
+    stp x4, x5,  [sp, #-16]!
+    stp x6, x7,  [sp, #-16]!
+    stp x8, x9,  [sp, #-16]!
+    stp x10,x11, [sp, #-16]!
+    stp x12,x13, [sp, #-16]!
+    stp x14,x15, [sp, #-16]!
+    mov x0, 3
+    mov x1, 14
+    b el3_fiq_handler
 
 .balign 0x80
 lower_el_aarch32_serror:
-        stp x0, x1,  [sp, #-16]!
-        stp x2, x3,  [sp, #-16]!
-        stp x4, x5,  [sp, #-16]!
-        stp x6, x7,  [sp, #-16]!
-        stp x8, x9,  [sp, #-16]!
-        stp x10,x11, [sp, #-16]!
-        stp x12,x13, [sp, #-16]!
-        stp x14,x15, [sp, #-16]!
-        mov x0, 3
-        mov x1, 5
-        b el3_serror_handler
+    stp x0, x1,  [sp, #-16]!
+    stp x2, x3,  [sp, #-16]!
+    stp x4, x5,  [sp, #-16]!
+    stp x6, x7,  [sp, #-16]!
+    stp x8, x9,  [sp, #-16]!
+    stp x10,x11, [sp, #-16]!
+    stp x12,x13, [sp, #-16]!
+    stp x14,x15, [sp, #-16]!
+    mov x0, 3
+    mov x1, 5
+    b el3_serror_handler
 
 el3_sync_handler:
-        stp x29,x30, [sp, #-16]!//Save x29, x30
-        mrs x2, spsr_el3
-        mrs x3, elr_el3
-        stp x2, x3, [sp, #-16]!
-        mrs x4, esr_el3
-        mrs x5, far_el3
-        bl c_sync_handler
-        ldp x2, x3, [sp], #16
-        msr spsr_el3, x2
-        msr elr_el3, x3
-        ldp x29,x30, [sp], #16
-        ldp x14,x15, [sp], #16
-        ldp x12,x13, [sp], #16
-        ldp x10,x11, [sp], #16
-        ldp x8, x9,  [sp], #16
-        ldp x6, x7,  [sp], #16
-        ldp x4, x5,  [sp], #16
-        ldp x2, x3,  [sp], #16
-        ldp x0, x1,  [sp], #16
-        eret
+    stp x29,x30, [sp, #-16]!//Save x29, x30
+    mrs x2, spsr_el3
+    mrs x3, elr_el3
+    stp x2, x3, [sp, #-16]!
+    mrs x4, esr_el3
+    mrs x5, far_el3
+    bl c_sync_handler
+    ldp x2, x3, [sp], #16
+    msr spsr_el3, x2
+    msr elr_el3, x3
+    ldp x29,x30, [sp], #16
+    ldp x14,x15, [sp], #16
+    ldp x12,x13, [sp], #16
+    ldp x10,x11, [sp], #16
+    ldp x8, x9,  [sp], #16
+    ldp x6, x7,  [sp], #16
+    ldp x4, x5,  [sp], #16
+    ldp x2, x3,  [sp], #16
+    ldp x0, x1,  [sp], #16
+    eret
 
 el3_serror_handler:
-        stp x29,x30, [sp, #-16]!//Save x29, x30
-        mrs x2, spsr_el3
-        mrs x3, elr_el3
-        stp x2, x3, [sp, #-16]!
-        mrs x4, esr_el3
-        mrs x5, far_el3
-        bl c_serror_handler
-        ldp x2, x3, [sp], #16
-        msr spsr_el3, x2
-        msr elr_el3, x3
-        ldp x29,x30, [sp], #16
-        ldp x14,x15, [sp], #16
-        ldp x12,x13, [sp], #16
-        ldp x10,x11, [sp], #16
-        ldp x8, x9,  [sp], #16
-        ldp x6, x7,  [sp], #16
-        ldp x4, x5,  [sp], #16
-        ldp x2, x3,  [sp], #16
-        ldp x0, x1,  [sp], #16
-        eret
+    stp x29,x30, [sp, #-16]!//Save x29, x30
+    mrs x2, spsr_el3
+    mrs x3, elr_el3
+    stp x2, x3, [sp, #-16]!
+    mrs x4, esr_el3
+    mrs x5, far_el3
+    bl c_serror_handler
+    ldp x2, x3, [sp], #16
+    msr spsr_el3, x2
+    msr elr_el3, x3
+    ldp x29,x30, [sp], #16
+    ldp x14,x15, [sp], #16
+    ldp x12,x13, [sp], #16
+    ldp x10,x11, [sp], #16
+    ldp x8, x9,  [sp], #16
+    ldp x6, x7,  [sp], #16
+    ldp x4, x5,  [sp], #16
+    ldp x2, x3,  [sp], #16
+    ldp x0, x1,  [sp], #16
+    eret
 
 
 el3_irq_handler:
-        stp x29,x30, [sp, #-16]!//Save x29, x30
-        mrs x2, spsr_el3
-        mrs x3, elr_el3
-        stp x2, x3, [sp, #-16]!
-        bl c_irq_handler
-        ldp x2, x3, [sp], #16
-        msr spsr_el3, x2
-        msr elr_el3, x3
-        ldp x29,x30, [sp], #16
-        ldp x14,x15, [sp], #16
-        ldp x12,x13, [sp], #16
-        ldp x10,x11, [sp], #16
-        ldp x8, x9,  [sp], #16
-        ldp x6, x7,  [sp], #16
-        ldp x4, x5,  [sp], #16
-        ldp x2, x3,  [sp], #16
-        ldp x0, x1,  [sp], #16
-        eret
+    stp x29,x30, [sp, #-16]!//Save x29, x30
+    mrs x2, spsr_el3
+    mrs x3, elr_el3
+    stp x2, x3, [sp, #-16]!
+    bl c_irq_handler
+    ldp x2, x3, [sp], #16
+    msr spsr_el3, x2
+    msr elr_el3, x3
+    ldp x29,x30, [sp], #16
+    ldp x14,x15, [sp], #16
+    ldp x12,x13, [sp], #16
+    ldp x10,x11, [sp], #16
+    ldp x8, x9,  [sp], #16
+    ldp x6, x7,  [sp], #16
+    ldp x4, x5,  [sp], #16
+    ldp x2, x3,  [sp], #16
+    ldp x0, x1,  [sp], #16
+    eret
 
 el3_fiq_handler:
-        stp x29,x30, [sp, #-16]!//Save x29, x30
-        mrs x2, spsr_el3
-        mrs x3, elr_el3
-        stp x2, x3, [sp, #-16]!
-        bl c_fiq_handler
-        ldp x2, x3, [sp], #16
-        msr spsr_el3, x2
-        msr elr_el3, x3
-        ldp x29,x30, [sp], #16
-        ldp x14,x15, [sp], #16
-        ldp x12,x13, [sp], #16
-        ldp x10,x11, [sp], #16
-        ldp x8, x9,  [sp], #16
-        ldp x6, x7,  [sp], #16
-        ldp x4, x5,  [sp], #16
-        ldp x2, x3,  [sp], #16
-        ldp x0, x1,  [sp], #16
-        eret
+    stp x29,x30, [sp, #-16]!//Save x29, x30
+    mrs x2, spsr_el3
+    mrs x3, elr_el3
+    stp x2, x3, [sp, #-16]!
+    bl c_fiq_handler
+    ldp x2, x3, [sp], #16
+    msr spsr_el3, x2
+    msr elr_el3, x3
+    ldp x29,x30, [sp], #16
+    ldp x14,x15, [sp], #16
+    ldp x12,x13, [sp], #16
+    ldp x10,x11, [sp], #16
+    ldp x8, x9,  [sp], #16
+    ldp x6, x7,  [sp], #16
+    ldp x4, x5,  [sp], #16
+    ldp x2, x3,  [sp], #16
+    ldp x0, x1,  [sp], #16
+    eret

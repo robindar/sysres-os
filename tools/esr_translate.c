@@ -5,35 +5,35 @@
 #include <stdint.h>
 
 /* Generic function for printing an integer, warning displays nothing for 0 */
-int put_uint(uint64_t x, unsigned int base, bool upper_hexa){
-	if(x == 0) {
-		return 0;
-	}
-	uint64_t y = x % base;
-	int written = put_uint(x/base, base, upper_hexa);
-	if(y <= 9) putc(48 + y, stdout);
-	else if(upper_hexa) putc(55 + y, stdout);
-	else putc(87 + y, stdout);
-	return written + 1;
+int put_uint(uint64_t x, unsigned int base, bool upper_hexa) {
+    if(x == 0) {
+        return 0;
+    }
+    uint64_t y = x % base;
+    int written = put_uint(x/base, base, upper_hexa);
+    if(y <= 9) putc(48 + y, stdout);
+    else if(upper_hexa) putc(55 + y, stdout);
+    else putc(87 + y, stdout);
+    return written + 1;
 }
 
 
-int put_int(int64_t x, unsigned int base, bool unsign, bool upper_hexa){
-	int written = 0;
-	if(x == 0) {
-		putc('0', stdout);
-		written ++;
-	}
-	else if (x < 0 && !unsign){
-		putc('-', stdout);
-		written += 1 + put_uint(1 + ~x, base, upper_hexa);
-	}
-	else written += put_uint(x, base, upper_hexa);
-	return written;
+int put_int(int64_t x, unsigned int base, bool unsign, bool upper_hexa) {
+    int written = 0;
+    if(x == 0) {
+        putc('0', stdout);
+        written ++;
+    }
+    else if (x < 0 && !unsign){
+        putc('-', stdout);
+        written += 1 + put_uint(1 + ~x, base, upper_hexa);
+    }
+    else written += put_uint(x, base, upper_hexa);
+    return written;
 }
 
 //Takes input as hexadecimal
-int main(int argc, char** argv){
+int main(int argc, char** argv) {
     uint64_t esr_eln = strtol(argv[1], NULL, 16);
     //Parse ESR_EL1 (see aarch64, exception and interrupt handling)
     uint64_t exception_class = (esr_eln & 0xfc000000) >> 26;

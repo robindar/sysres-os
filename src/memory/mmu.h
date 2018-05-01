@@ -16,13 +16,13 @@
 #define GRANULE (0x1000)
 
 enum block_perm_config {
-  /* UXN : bit 3
-   * PXN : bit 2
-   * AP  : bits 1-0 */
-  ACCESS_FLAG_SET = 0b10000,
-  KERNEL_PAGE     = 0b00000, /* EL0 --X, ELn RWX : UXN(0) PXN(0) AP(00) */
-  USER_PAGE       = 0b00001, /* EL0 RWX, ELn RW- : UXN(0) PXN(0) AP(01) */
-  IO_PAGE         = 0b01001  /* EL0 RW-, ELn RW- : UXN(1) PXN(0) AP(01) */
+    /* UXN : bit 3
+     * PXN : bit 2
+     * AP  : bits 1-0 */
+    ACCESS_FLAG_SET = 0b10000,
+    KERNEL_PAGE     = 0b00000, /* EL0 --X, ELn RWX : UXN(0) PXN(0) AP(00) */
+    USER_PAGE       = 0b00001, /* EL0 RWX, ELn RW- : UXN(0) PXN(0) AP(01) */
+    IO_PAGE         = 0b01001  /* EL0 RW-, ELn RW- : UXN(1) PXN(0) AP(01) */
 };
 
 enum block_cache_config {
@@ -53,16 +53,16 @@ enum block_cache_config {
  *   4-2  : AttrIndX : Attribute Index Field
  */
 typedef struct {
-	uint64_t UXN,
-			 PXN,
-			 ContinuousBit,
-			 DirtyBit,
-			 NotGlobal,
-			 AccessFlag,
-			 Shareability,
-			 AccessPermission,
-			 NonSecure,
-			 AttrIndex;
+    uint64_t UXN,
+             PXN,
+             ContinuousBit,
+             DirtyBit,
+             NotGlobal,
+             AccessFlag,
+             Shareability,
+             AccessPermission,
+             NonSecure,
+             AttrIndex;
 } block_attributes_sg1;
 
 block_attributes_sg1 new_block_attributes_sg1(enum block_perm_config perm_config, enum block_cache_config cache_config);
@@ -82,10 +82,10 @@ void set_block_and_page_access_flag(uint64_t addr);
  *    59  : PXNTable
  */
 typedef struct {
-	uint64_t NSTable,
-			 APTable,
-			 UXNTable,
-			 PXNTable;
+    uint64_t NSTable,
+             APTable,
+             UXNTable,
+             PXNTable;
 } table_attributes_sg1;
 
 table_attributes_sg1 new_table_attributes_sg1();
@@ -133,8 +133,8 @@ void pmapdump();
  * Insert freed pages at phys_mem.head - 1
  */
 struct physical_memory_map_t {
-	uint32_t * map; /* address of the actual map */
-	uint32_t head, size;
+    uint32_t * map; /* address of the actual map */
+    uint32_t head, size;
 };
 
 int get_new_page(uint64_t virtual_address, enum block_perm_config block_perm, enum block_cache_config cache_config);
