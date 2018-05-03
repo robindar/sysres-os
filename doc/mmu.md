@@ -82,3 +82,15 @@ However having 256 slots uses the whole RAM, so we'll stick to 32 active process
 
 # Permissions #
 We were mapping stack and data/bss pages with KERNEL permissions even for usr processes. Actually we need RW at every level for these zones.
+
+# Contiguous Bit #
+ARM ARM 2178
+Warning dangerous :
+        - Contiguous zones must be 16 pages aligned, same perm, cache policy, same invalid.valid...
+        - Thus id mapped pages must not be touched after set up !!!
+        - As of the atual commit (3e8fc on proc, 3aafd on debug_proc), we have :
+                - Beginning of kernel : 0x0
+                - Data start          : 0x6000
+                - BSS end             : 0xb000
+                - Id_paging_size      : 0x4300000
+          -> Thus we don't have 16 entries for kernel/data but it is feasible for tables

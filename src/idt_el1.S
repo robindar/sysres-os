@@ -258,7 +258,7 @@ lower_el_el1_sync_handler:
         mov x3, sp                      //Handler SP
         bl save_context
         add sp, sp, #(32 * 8)           //Clean stack
-        mov x0, x4                      //Move ESR_EL1 to X0
+        mrs x0, esr_el1                 //Move ESR_EL1 to X0
         b c_el1_svc_aarch64_handler     //Warning this musn't return here
 
 curr_el_el1_sync_handler:

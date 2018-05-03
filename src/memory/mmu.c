@@ -31,7 +31,7 @@ block_attributes_sg1 new_block_attributes_sg1(enum block_perm_config perm_config
   bas1.AccessPermission = perm_config & 0b11;
   bas1.NonSecure = 1;
   /* Stage 1 memory attributes index field, cache related buisness, cf ARM ARM 2175) */
-  bas1.AttrIndex = DEVICE/* cache_config */;
+  bas1.AttrIndex = cache_config;
   return bas1;
 }
 
@@ -299,20 +299,15 @@ void check_identity_paging(uint64_t id_paging_size){
 		}
 	}
 	uart_debug("Checked identity paging\r\n");
-        lvl3_entry_phys_addr = get_lvl3_entry_phys_address(0x7208);
-        uart_debug("0x7000 entry : %b\r\n", AT(lvl3_entry_phys_addr));
 }
 
 /* Returns identity paging size */
 uint64_t identity_paging() {
 	uart_info("Binding identity\r\n");
-        /* The caching polic may be wrong here */
 	block_attributes_sg1 kernel_ba = new_block_attributes_sg1(KERNEL_PAGE | ACCESS_FLAG_SET, NORMAL_WT_NT);
-        kernel_ba.ContinuousBit = 1;
-        /* TODO : switch back to DATA_PAGE */
-        block_attributes_sg1 data_ba   = new_block_attributes_sg1(  USER_PAGE | ACCESS_FLAG_SET, NORMAL_WT_NT);
-        data_ba.ContinuousBit = 0;
+        block_attributes_sg1 data_ba   = new_block_attributes_sg1(  DATA_PAGE | ACCESS_FLAG_SET, NORMAL_WT_NT);
 	uint64_t id_paging_size, data_start, bss_end;
+        /* Everything is GRANULE aligned */
 	asm volatile ("ldr %0, =__end" : "=r"(id_paging_size) : :);
         asm volatile ("ldr %0, =__data_start" : "=r"(data_start) : :);
         asm volatile ("ldr %0, =__bss_end" : "=r"(bss_end) : :);
@@ -320,18 +315,29 @@ uint64_t identity_paging() {
         uart_verbose("__data_start : 0x%x\r\n", data_start);
         uart_verbose("__bss_end : 0x%x\r\n", bss_end);
         int status;
-	for (uint64_t physical_pnt = 0; physical_pnt < id_paging_size; physical_pnt += GRANULE) {
-		//uart_debug("Before bind\r\n");
-        	if((data_start <= physical_pnt) && (physical_pnt < bss_end))
-                    /* This is a data zone */
-                    /* Note : bss_end and data_start have to be GRANULE aligned */
-                    status = bind_address(physical_pnt, physical_pnt, data_ba);
-                else
-                    status = bind_address(physical_pnt, physical_pnt, kernel_ba);
-		if (status)
-			uart_verbose("Invalid status found at 0x%x : %d\r\n", physical_pnt, status);
-		assert(!status);
-	}
+        uint64_t physical_pnt;
+        /* Kernel zone : 0x0 - data_start (~0x6000) */
+	for (physical_pnt = 0; physical_pnt < data_start; physical_pnt += GRANULE) {
+            status = bind_address(physical_pnt, physical_pnt, kernel_ba);
+            if (status)
+                uart_verbose("Invalid status found at 0x%x : %d\r\n", physical_pnt, status);
+        }
+        /* Data zone : data_start (~0x6000) - bss_end (~0xb000) */
+        for (physical_pnt = data_start; physical_pnt < bss_end; physical_pnt += GRANULE) {
+            status = bind_address(physical_pnt, physical_pnt, data_ba);
+            if (status)
+                uart_verbose("Invalid status found at 0x%x : %d\r\n", physical_pnt, status);
+        }
+        /* Tables zones : bss_end (~0xb000) - id_paging_size (~0x4300000) */
+        /* See ARM ARM 2178 for the pages alignement constraints : for GRANULE = 4kB, 16 is needed */
+        kernel_ba.ContinuousBit = 1;
+        uint64_t n_pages = (id_paging_size - bss_end) / GRANULE;
+        for (physical_pnt = bss_end; physical_pnt < id_paging_size; physical_pnt += GRANULE) {
+            if((physical_pnt - bss_end) / GRANULE > 16 * (n_pages / 16)) kernel_ba.ContinuousBit = 0;
+            status = bind_address(physical_pnt, physical_pnt, kernel_ba);
+            if (status)
+                uart_verbose("Invalid status found at 0x%x : %d\r\n", physical_pnt, status);
+        }
 	uart_info("Binded indentity\r\n");
 
 
@@ -507,16 +513,9 @@ int free_virtual_page(uint64_t virtual_addr){
 
 void translation_fault_handler(uint64_t fault_address, int level, bool lower_el){
 	(void) level;
+        uart_verbose("Translation fault handler called at %s\r\n", lower_el ? "lower EL" : "same EL");
         /* For now no distnction between EL, the same difference is TTBR0 which is detected auto */
         set_lvl2_address_from_TTBR0_EL1();
-        if((fault_address / GRANULE) * GRANULE  == 0x7000){
-            bind_address(0x7000, 0x7000, new_block_attributes_sg1(USER_PAGE | ACCESS_FLAG_SET, NORMAL_WT_NT));
-            asm volatile("ISB");
-            uart_verbose("Debug handler\r\n");
-            return;
-        }
-        uart_verbose("Translation fault handler called at %s\r\n", lower_el ? "lower EL" : "same EL");
-        uart_verbose("lvl2_table_address = 0x%x\r\n", lvl2_table_address);
         assert(fault_address >= get_heap_begin());
         /* WARNING : our handling of the stack is extremely dangerous and NEEDS to be fixed */
         /* Indeed, right now if the kernel overflows the only page of cache allowed, (even without the next assert) it will get bogged down at curr_el_spx_sync because there will be no stack available : so maybe alloc two pages for the stack at init and that's all ? */

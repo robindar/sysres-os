@@ -1,18 +1,12 @@
 #include "test.h"
 #include "../memory/mmu.h"
 
-/* Warning this requires a special case in the translation fault handler
+/* (Warning this requires a special case in the translation fault handler
    to restore the pages belonging to id_paging
-   moreover make sure there are no uart_print during the handling of translation fault error*/
+   moreover make sure there are no uart_print during the handling of translation fault error)*/
+/* If this is not the case, the shouldn't happen shouldn't be printed (the system will loop)*/
 
-/* Has to be run at kernel */
-/* We already now it odesn't work at EL1 with proc mmu */
 
-/* Kernel :
- - Qemu : ok
- - Hardware :
-
-*/
 void free_test(){
     uint64_t phys_addr = 0x7000;
     free_virtual_page(phys_addr);

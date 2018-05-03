@@ -6,7 +6,7 @@
 
 void proc0_main(){
     uint64_t x;
-    uint64_t * p = 0x4300000;
+    uint64_t * p = (uint64_t *) 0x4300000;
     x = *p;
     *p = x;
     /* p = 0x7000; */
@@ -14,5 +14,6 @@ void proc0_main(){
     uart_debug("x = 0x%x\r\n", x);
     uart_info("Init process running\r\n");
     uart_info("Halting...\r\n");
-    abort();
+    /* Halt syscall : TODO : do a lovely interface */
+    asm volatile("svc #100");
 }

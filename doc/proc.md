@@ -7,6 +7,9 @@ We will follow the specs of the micro-kernel given during the class (at least in
 Syscalls will have to be directed at EL1 through a SVC call. The SVC argument will determine the type of the Sysacll, and not r0 as specified in the spec.
 They can pass any number of arguments in the registers
 
+Note : WFE cannot be executed at EL0 (if it leads to low power mode)
+Thus Syscall : 100 -> halt
+
 # MMU #
 The Address Space ID (ASID) is defined as the PID of the process.
 For the kernel, it is 0 by convention.
@@ -18,3 +21,6 @@ First kernel
 Then Stack/Heap
 (as the code is actually in the kernel for now)
 => Hence the kernel can be set as global
+
+
+

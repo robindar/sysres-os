@@ -26,7 +26,7 @@ void * ksbrk(int increment) {
     int res = end_offset + heap_begin;
     end_offset += increment;
     if(increment < 0){
-        int nb_pages_to_free = (res / GRANULE) - ((res + increment) / GRANULE) + !(res % GRANULE == 0);
+        int nb_pages_to_free = (res / GRANULE) - ((res + increment) / GRANULE) + (!(res % GRANULE == 0) ? 1 : 0);
         for(int i = 0; i < nb_pages_to_free; i ++){
             free_virtual_page(res - i * GRANULE);
         }

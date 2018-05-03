@@ -2,12 +2,13 @@
 #include "proc_mmu.h"
 #include "../libc/uart/uart.h"
 #include "../libc/debug/debug.h"
+#include "../libc/misc.h"
 #include "../memory/alloc.h"
 #include "../usr/init.h"
 #include "../interrupt.h"
 
 
-
+/**** INIT *****/
 /* Warning : do not remove the "static" here o/w it leads to strange behavior */
 static system_state sys_state;
 
@@ -64,6 +65,8 @@ void init_proc(){
 }
 
 
+
+/****  CONTEXT  ****/
 /* TODO : NEON/SIMD registers ?? */
 void save_context(uint64_t sp, uint64_t elr_el1, uint64_t pstate, uint64_t handler_sp){
     context * const ctx = &(sys_state.procs[sys_state.curr_pid].saved_context);
@@ -78,7 +81,6 @@ void save_context(uint64_t sp, uint64_t elr_el1, uint64_t pstate, uint64_t handl
 
 /* Run again process */
 /* Assumes MMU, Stack... is already set up */
-/* QUESTION : who's going to clean the stacks of these funcs ? */
 __attribute__((__noreturn__))
 void run_process(const proc_descriptor * proc){
     uart_verbose("Preparing to run process with PID %d with code at address 0x%x\r\n", proc->pid, proc->saved_context.pc);
@@ -111,27 +113,18 @@ int exec_proc(int pid){
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+/**** SYSCALLS ****/
 /* Should not return */
 __attribute__((__noreturn__))
 void c_el1_svc_aarch64_handler(uint64_t esr_el1){
-    uint16_t syscall = (esr_el1 & 0x1ffffff); //get back syscall code
+    uint16_t syscall = (esr_el1 & MASK(15,0));
+    //get back syscall code (ARM ARM 2453 for encoding)
     switch(syscall){
+        case 100:
+            /* Halt syscall (halt cannot be executed at EL0) */
+            uart_verbose("Syscall code 100 : Halt\r\n");
+            halt();
+            break;
         default:
             uart_error(
                 "Error no syscall SVC Aarch64 corresponding to code %d\r\n",

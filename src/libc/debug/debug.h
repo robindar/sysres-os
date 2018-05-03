@@ -15,6 +15,11 @@
         abort(); \
     }; \
 
+
+/* Defined in boot.s */
+__attribute__((__noreturn__))
+extern void halt();
+
 __attribute__((__noreturn__))
 void abort();
 

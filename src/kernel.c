@@ -25,8 +25,6 @@ void kernel_main(uint64_t r0, uint64_t r1, uint64_t atags)
 	(void) r1;
 	(void) atags;
         kernel_init();
-        free_test();
-        abort();
         /* Start init process */
-	/* exec_proc(1); */
+	exec_proc(1);
 }
