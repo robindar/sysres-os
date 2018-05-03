@@ -52,7 +52,7 @@ void init_proc(){
     /* Create init process (PID 1) */
     /* Don't understand what the hell was happening with this : p was set to zero while gdb says &proc0_main != 0 */
     /* void (*p)() = 42; */
-    /* p = &proc0_main; */
+    /* p = proc0_main; */
     /* uart_debug("p = %d", (int)p); */
     /* -> Workaround :*/
     uint64_t p;

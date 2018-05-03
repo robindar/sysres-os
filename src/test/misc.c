@@ -31,7 +31,8 @@ void malloc_test(){
     uint64_t * p = (uint64_t *) kmalloc(sizeof(uint64_t));
     *p = 42;
     free_virtual_page((uint64_t) p);
-    *p = 43;                    /* Should cause an Tranlsation Fault again */
+    uart_debug("Should cause a translation fault\r\n");
+    *p = 43;
     char * array = (char *) kmalloc(GRANULE * sizeof(char));
     array[GRANULE - 1] = 42;
     uart_debug("p = 0x%x\r\narray = 0x%x\r\n",p, array);

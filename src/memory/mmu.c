@@ -31,7 +31,7 @@ block_attributes_sg1 new_block_attributes_sg1(enum block_perm_config perm_config
   bas1.AccessPermission = perm_config & 0b11;
   bas1.NonSecure = 1;
   /* Stage 1 memory attributes index field, cache related buisness, cf ARM ARM 2175) */
-  bas1.AttrIndex = cache_config;
+  bas1.AttrIndex = DEVICE/* cache_config */;
   return bas1;
 }
 
@@ -108,7 +108,7 @@ table_attributes_sg1 new_table_attributes_sg1() {
 	 * 10 : Write forbidden (any level)
 	 * 11 : 01 and 10
 	 */
-	ta1.APTable = 0;
+	ta1.APTable  = 0;
 	ta1.UXNTable = 0;
 	ta1.PXNTable = 0;
 	return ta1;
@@ -476,8 +476,14 @@ void free_physical_page(uint64_t physical_addr) {
 /* returns get_lvl3_address status */
 /* free the page from any inside address : ie given any virtual address, frees the page that contains it */
 int free_virtual_page(uint64_t virtual_addr){
+        set_lvl2_address_from_TTBR0_EL1();
         uint64_t lvl3_entry_phys_address = get_lvl3_entry_phys_address(virtual_addr);
         uint64_t physical_address = get_address_sg1(lvl3_entry_phys_address);
+        set_invalid_entry(lvl3_entry_phys_address);
+        uart_verbose(
+            "Freeing page containing virtual address 0x%x at physical address 0x%x\r\n"
+            ,virtual_addr, physical_address);
+        free_physical_page(physical_address);
         /* Clear TLB entry (note this clears only for the current ASID) (see ARMv8-A Address Translation p27)*/
         asm volatile("DSB ISHST");
         if((AT(lvl3_entry_phys_address) & MASK(9,8)) != 0)
@@ -486,24 +492,31 @@ int free_virtual_page(uint64_t virtual_addr){
         else
             asm volatile("TLBI VALE1  , %0" : : "r"(virtual_addr/GRANULE) :);
         /* Clean data cache */
-        asm volatile("DC CIVAC, %0" : : "r"(virtual_addr) :);
+        /* (the next line doesn't actually change anything (on HW) for malloc_test) */
+        asm volatile("DC CIVAC, %0" : : "r"(virtual_addr));
+        /* On hardware, with tis code, we don't pass malloc_test anymore, without it we pass */
+        /* See ARM programmer manual and ARM ARM 2424*/
+        /* uint64_t begin_page = virtual_addr & MASK(63, 12); */
+        /* for(int i = 0; i < 0x100; i++) asm volatile("DC CIVAC, %0" : : "r"(begin_page + i * 0x10) :); */
         /* Data sync barrier (inner shareable, ARM ARM 100) */
         asm volatile("DSB ISH");
         asm volatile("ISB");
-        set_invalid_entry(lvl3_entry_phys_address);
         int status = lvl3_entry_phys_address & MASK(2, 0);
-        uart_verbose(
-            "Freeing page containing virtual address 0x%x at physical address 0x%x\r\n"
-            ,virtual_addr, physical_address);
-        free_physical_page(physical_address);
         return status;
 }
 
 void translation_fault_handler(uint64_t fault_address, int level, bool lower_el){
 	(void) level;
         /* For now no distnction between EL, the same difference is TTBR0 which is detected auto */
-        uart_verbose("Translation fault handler called at %s\r\n", lower_el ? "lower EL" : "same EL");
         set_lvl2_address_from_TTBR0_EL1();
+        if((fault_address / GRANULE) * GRANULE  == 0x7000){
+            bind_address(0x7000, 0x7000, new_block_attributes_sg1(USER_PAGE | ACCESS_FLAG_SET, NORMAL_WT_NT));
+            asm volatile("ISB");
+            uart_verbose("Debug handler\r\n");
+            return;
+        }
+        uart_verbose("Translation fault handler called at %s\r\n", lower_el ? "lower EL" : "same EL");
+        uart_verbose("lvl2_table_address = 0x%x\r\n", lvl2_table_address);
         assert(fault_address >= get_heap_begin());
         /* WARNING : our handling of the stack is extremely dangerous and NEEDS to be fixed */
         /* Indeed, right now if the kernel overflows the only page of cache allowed, (even without the next assert) it will get bogged down at curr_el_spx_sync because there will be no stack available : so maybe alloc two pages for the stack at init and that's all ? */
@@ -512,6 +525,7 @@ void translation_fault_handler(uint64_t fault_address, int level, bool lower_el)
 		get_new_page(fault_address, KERNEL_PAGE | ACCESS_FLAG_SET, NORMAL_WT_NT);
         else
         	get_new_page(fault_address, USER_PAGE | ACCESS_FLAG_SET, NORMAL_WT_NT);
+        asm volatile("ISB");
         uart_verbose("Translation fault handler returns\r\n");
         return;
 };

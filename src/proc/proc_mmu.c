@@ -32,6 +32,15 @@ void switch_to_proc(const proc_descriptor * proc){
     asm volatile("ISB");
     uart_info("Successfully switched to process MMU\r\n");
     uart_debug("Block 0x7000 permission : 0b%b\r\n", get_page_permission(0x7000));
+    set_lvl2_address_from_TTBR0_EL1();
+    /* Things to emove after debugging : */
+    /* - End of free_virtual_page */
+    /* - Uart_verbose in data_abort handler */
+    free_virtual_page(0x7000);
+    delay((1 << 26));
+    uint64_t data = *((uint64_t*)0x7000);
+    uart_debug("hey = %x\r\n", data);
+    uart_debug("Shouldn't happen\r\n");
     restore_and_run((uint64_t) &(proc->saved_context.registers[N_REG - 1]),
                     proc->saved_context.pc,
                     proc->saved_context.sp,
