@@ -376,6 +376,9 @@ void c_init_mmu(){
     int status = get_new_page(GPIO_BASE - GRANULE, KERNEL_PAGE | ACCESS_FLAG_SET, NORMAL_WT_NT) & MASK(2, 0);
     if(status)
         uart_error("Error during stack initialization with status : %d\r\n", status);
+    status = get_new_page(GPIO_BASE - 2 * GRANULE, KERNEL_PAGE | ACCESS_FLAG_SET, NORMAL_WT_NT) & MASK(2, 0);
+    if(status)
+        uart_error("Error during stack initialization with status : %d\r\n", status);
     uart_info("C MMU Init sucess\r\n");
 }
 
