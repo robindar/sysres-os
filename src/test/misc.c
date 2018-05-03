@@ -41,6 +41,39 @@ void malloc_test() {
     char * array = (char *) kmalloc(GRANULE * sizeof(char));
     array[GRANULE - 1] = 42;
     uart_debug("p = 0x%x\r\narray = 0x%x\r\n",p, array);
+
+    /* The following test sequence needs to be manually checked
+     * make sure to use compile flag -D MALLOC_VERBOSE
+     * And go through the logs to check that the malloc blocks
+     *   are properly merged and split
+     */
+    uart_debug("Testing malloc block merge\r\n");
+    uart_debug("Allocating first array (size 10)\r\n");
+    uint64_t * p1 = (uint64_t *) kmalloc(10 * sizeof(uint64_t));
+    p1[0] = 42;
+    uart_debug("Allocating second array (size 20)\r\n");
+    uint64_t * p2 = (uint64_t *) kmalloc(20 * sizeof(uint64_t));
+    p2[0] = 42;
+    uart_debug("Freeing first array\r\n");
+    kfree(p1);
+    uart_debug("Allocating third array (size 30)\r\n");
+    uint64_t * p3 = (uint64_t *) kmalloc(30 * sizeof(uint64_t));
+    p3[0] = 42;
+    uart_debug("Allocating fourth array (size 40)\r\n");
+    uint64_t * p4 = (uint64_t *) kmalloc(40 * sizeof(uint64_t));
+    p4[0] = 42;
+    uart_debug("Freeing third array\r\n");
+    kfree(p3);
+    uart_debug("Freeing second array\r\n");
+    kfree(p2);
+    uart_debug("Allocating fifth array (size 50)\r\n");
+    uint64_t * p5 = (uint64_t *) kmalloc(50 * sizeof(uint64_t));
+    p5[0] = 42;
+    uart_debug("Freeing fourth array\r\n");
+    kfree(p4);
+    uart_debug("Freeing fifth array\r\n");
+    kfree(p5);
+
     kfree(p);
     kfree(array);
     uart_debug("Done testing malloc\r\n");
