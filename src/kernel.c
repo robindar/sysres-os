@@ -4,48 +4,26 @@
 #include "libc/misc.h"
 #include "libc/debug/debug.h"
 #include "interrupt.h"
+#include "memory/alloc.h"
+#include "test/test.h"
+#include "proc/proc.h"
 
 #if defined(__cplusplus)
 extern "C" /* Use C linkage for kernel_main. */
 #endif
 
-void print_formatting_tests() {
-	uart_info("Performing printf formatting tests:\r\n");
-	uart_info("\tShould output \"hey\": %s\r\n", "hey");
-	uart_info("\tShould output \"2a\": %x\r\n", 42);
-	uart_info("\tShould output \"101010\": %b\r\n", 42);
-	uart_info("\tShould output \"52\": %o\r\n", 42);
-	uart_info("\tShould output \"-42\": %d\r\n", -42);
-	uart_info("Done testing printf formatting\r\n");
+void kernel_init() {
+    uart_info("Beginning kernel initialization\r\n");
+    init_alloc();
+    init_proc();
+    uart_info("Performed kernel initialization\r\n");
 }
 
-void debug_test(){
-    assert(0);
-}
-
-
-void syscall_test(){
-    asm volatile ("svc #0x1"::);
-}
-
-void kernel_main(uint64_t r0, uint64_t r1, uint64_t atags)
-{
-	// Declare as unused
-	(void) r0;
-	(void) r1;
-	(void) atags;
-
-	uart_init();
-	//uint64_t variable = 0;
-	//asm volatile("ADR %0, ." : "=r"(variable) : :);
-	//uart_printf("address is : %x\r\n", variable);
-	print_reg(VBAR_EL1);
-
-	uart_info("Performed kernel initialization\r\n");
-	print_formatting_tests();
-	syscall_test();
-
-	while (1){
-		uart_putc(uart_getc());
-	}
+void kernel_main(uint64_t r0, uint64_t r1, uint64_t atags) {
+    (void) r0;
+    (void) r1;
+    (void) atags;
+    kernel_init();
+    /* Start init process */
+    exec_proc(1);
 }

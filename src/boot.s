@@ -14,81 +14,68 @@
 // r2 -> 0x00000100 - start of ATAGS
 // preserve these registers as argument for kernel_main
 _start:
-	// Setup the stack.
-	mov sp, #0x8000
+    //Invalidate all instruction cache entries (recomended in ARMv8-A Programmer Guide p115)
+    IC IALLU
+    /* Clear TLB at EL1 (ARMv8-A Address Translation p27) (has to be done at level > EL1)*/
+    TLBI ALLE1
+    ISB
+    // Setup the stack.
+    mov sp, #0x8000
 
-	// Clear out bss.
-	ldr X4, =__bss_start
-	ldr X9, =__bss_end
-	mov X5, #0
-	mov X6, #0
-	mov X7, #0
-	mov X8, #0
-	b       2f
+    // Clear out bss.
+    ldr X4, =__bss_start
+    ldr X9, =__bss_end
+    mov X5, #0
+    mov X6, #0
+    mov X7, #0
+    mov X8, #0
+    b       2f
 
 1:
-	// store multiple at r4.
-	stp X5, X6, [X4], #16
-	stp X7, X8, [X4], #16
+    // store multiple at r4.
+    stp X5, X6, [X4], #16
+    stp X7, X8, [X4], #16
 
-	// If we are still below bss_end, loop.
+    // If we are still below bss_end, loop.
 2:
-	cmp X4, X9
-	blo 1b
+    cmp X4, X9
+    blo 1b
 
-	//Turn off cpu1,2,3
-	//Get cpu id in r3
-	//mrc p15,0,r3,c0,c0,5
-	mrs X3, MPIDR_EL1
-	//Mask
-	and X3, X3, #0xFF
-	//Compare
-	cmp X3, #0
-	//Jump if non-zero
-	bne halt
+    //Turn off cpu1,2,3
+    //Get cpu id in r3
+    //mrc p15,0,r3,c0,c0,5
+    mrs X3, MPIDR_EL1
+    //Mask
+    and X3, X3, #0xFF
+    //Compare
+    cmp X3, #0
+    //Jump if non-zero
+    bne halt
 
-	//Tell the system where the Interrupt Tables are
-	ldr X3, =Vector_table_el1
-	msr VBAR_EL1, X3
-	ldr X3, =Vector_table_el2
-	msr VBAR_EL2, X3
-	ldr X3, =Vector_table_el3
-	msr VBAR_EL3, X3
+    //Tell the system where the Interrupt Tables are
+    ldr X3, =Vector_table_el1
+    msr VBAR_EL1, X3
+    ldr X3, =Vector_table_el2
+    msr VBAR_EL2, X3
+    ldr X3, =Vector_table_el3
+    msr VBAR_EL3, X3
 
-	//Switch from EL3 (secure) to EL1 (kernel)
-	bl switch_from_EL3_to_EL1
-	//Set up stack again
-	mov sp, #0x8000
+    //Switch from EL3 (secure) to EL1 (kernel)
+    bl switch_from_EL3_to_EL1
+    //Set up stack again
+    mov sp, #0x8000
 
-	// Enable MMU
-	ldr X3, =__TTBR0_EL1_start
-	msr TTBR0_EL1, X3 // Set TTBR0
-	ldr X3, =__TTBR1_EL1_start
-	msr TTBR1_EL1, X3 // Set TTBR1
-	// Set TCR
-	mrs X27, TCR_EL1
-	orr X3, X3, #(1 << 38) // TBI1 -> Top byte ignored in address calculation
-	orr X3, X3, #(1 << 37) // TBI0 -> idem
-	orr X3, X3, #(1 << 36) // AS   -> 16 bits of ASID
-	orr X3, X3, #(1 << 31) // TG1  -> 10 : granule size at 4KB
-	msr TCR_El1, X3
-	// Instruction Synchronization Barrier:
-	//  forces the previous changes to be seen
-	//  before enabling the MMU
-	isb
+    bl init_mmu
 
-	//mrs X3, SCTLR_EL1 // Read  System Control Register configuration data
-	//orr X3, X3, #1    // Set [M] bit and enable the MMU
-	//msr SCTLR_EL1, X3 // Write System Control Register configuration data
-	// Instruction Synchronization Barrier:
-	//isb
+    //Stack setup
+    ldr X0, =0x3F200000
+    mov sp, X0
+    mov X0, #0
+    bl kernel_main
 
-	mov X0, #0
-	b kernel_main
-
-	//halt
+    //halt
 .globl halt
 halt:
-	wfe
-	b halt
+    wfe
+    b halt
 

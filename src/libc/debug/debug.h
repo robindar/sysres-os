@@ -8,7 +8,19 @@
   asm volatile("MRS %0, " #reg : "=r"(__variable__print__reg__) : :);\
   uart_info("Reg " #reg " : 0x%x\r\n", __variable__print__reg__);
 
+#define assert(cond) \
+    if((cond) == 0){ \
+        uart_error("Assertion \"" #cond "\" failed at %s:%d\r\n",\
+                   __FILE__, __LINE__);\
+        abort(); \
+    }; \
+
+
+/* Defined in boot.s */
+__attribute__((__noreturn__))
+extern void halt();
+
+__attribute__((__noreturn__))
 void abort();
-void assert(int bl);
 
 #endif
