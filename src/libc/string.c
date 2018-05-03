@@ -1,3 +1,4 @@
+#include "misc.h"
 #include "string.h"
 
 int memcmp (const void * pa, const void * pb, size_t size) {
@@ -40,4 +41,11 @@ size_t strlen (const char * str) {
     size_t len = 0;
     while (str[len]) { len++; }
     return len;
+}
+
+char * strerror (int errno) {
+    switch((errno >> 16) & MASK(15,0)) {
+        default:
+          return "Undefined ERRNO";
+    }
 }
