@@ -1,9 +1,5 @@
 #include "alloc.h"
 
-/* Stack begins at #3F200000 see boot.s */
-#define STACK_BEGIN GPIO_BASE
-
-
 //Note : we thank GCC who was kindly putting this variable at the same address as physical memeory map (without static) and thus init_alloc was actually modifying physical memory map for our grestest pleasure
 static uint64_t heap_begin;
 static int end_offset;
@@ -16,9 +12,6 @@ void init_alloc(){
     end_offset = 0;
     global_base = NULL;
 
-    /* For now : half the meory for the stack, half for the heap */
-    uart_verbose("Invalid page to separate stack/heap set at 0x%x\r\n",(STACK_BEGIN + heap_begin)/2);
-    //set_invalid_page((STACK_BEGIN + heap_begin)/2);
     uart_info("Init Alloc done\r\n");
     return;
 }
@@ -28,6 +21,8 @@ void * ksbrk(int increment) {
     uart_verbose("ksbrk called with increment : %d and end_offset : 0x%x\r\n",increment, end_offset);
     int res = end_offset + heap_begin;
     end_offset += increment;
+    if (res + increment > STACK_END)
+      assert(0); // TODO: Heap overflow
     if(increment < 0){
         int nb_pages_to_free = (res / GRANULE) - ((res + increment) / GRANULE) + !(res % GRANULE == 0);
         for(int i = 0; i < nb_pages_to_free; i ++){

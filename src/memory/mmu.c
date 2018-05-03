@@ -433,8 +433,22 @@ int free_virtual_page(uint64_t virtual_addr){
 void translation_fault_handler(uint64_t fault_address, int level, bool lower_el){
     (void) level;
     uart_verbose("Translation fault handler called\r\n");
-    assert(fault_address >= get_heap_begin());
-    assert(fault_address < get_heap_begin() + get_end_offset());
+    uint64_t stack_pointer = 0;
+    asm volatile (
+        "msr spsel, xzr;" \
+        "mov x0, sp;" \
+        "mov x1, #1;" \
+        "msr spsel, x1;" \
+        "mov %0, x0"
+        : "=r"(stack_pointer)
+        :
+        : "x0", "x1" );
+    if (stack_pointer < STACK_END)
+        assert(0); // TODO: STACK OVERFLOW
+    if (!(fault_address >= get_heap_begin() &&
+        fault_address < get_heap_begin() + get_end_offset())) {
+        assert(0); // TODO: SEGFAULT - kill process
+    }
     if (!lower_el) {
         get_new_page(fault_address, KERNEL_PAGE | ACCESS_FLAG_SET, NORMAL_WT_NT);
     }
