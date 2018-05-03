@@ -1,6 +1,6 @@
 #include "interrupt.h"
 
-void display_esr_eln_info(uint64_t esr_eln){
+void display_esr_eln_info(uint64_t esr_eln) {
     //Parse ESR_EL1 (see aarch64, exception and interrupt handling)
     uint64_t exception_class = (esr_eln & 0xfc000000) >> 26;
     bool il = (esr_eln & 0x2000000) >> 25;
@@ -11,7 +11,7 @@ void display_esr_eln_info(uint64_t esr_eln){
         exception_class, il, instr_specific_syndrom, instr_specific_syndrom);
 }
 
-void display_pstate_info(uint64_t pstate){
+void display_pstate_info(uint64_t pstate) {
     bool n  = (pstate & (1 << 31)) >> 31;
     bool z  = (pstate & (1 << 30)) >> 30;
     bool c  = (pstate & (1 << 29)) >> 29;
@@ -45,7 +45,7 @@ void display_pstate_info(uint64_t pstate){
                 , n,z,c,v,d,a,i,f,ss,ua,il,ar,m,sp);
 }
 
-void display_error(char * msg, uint64_t el, uint64_t nb, uint64_t spsr_el, uint64_t elr_el, uint64_t esr_el, uint64_t far_el){
+void display_error(char * msg, uint64_t el, uint64_t nb, uint64_t spsr_el, uint64_t elr_el, uint64_t esr_el, uint64_t far_el) {
     uart_error(
         "%s :\r\nAt level : EL%d\r\nCase nb :%d\r\n"
         "ELR_EL : 0x%x\r\nSPSR_EL : 0x%x\r\nESR_EL : 0x%x\r\nFAR_EL : 0x%x\r\n",
@@ -55,7 +55,7 @@ void display_error(char * msg, uint64_t el, uint64_t nb, uint64_t spsr_el, uint6
     abort();
 }
 
-void instruction_abort_handler(uint64_t el, uint64_t nb, uint64_t spsr_el, uint64_t elr_el, uint64_t esr_el, uint64_t far_el, bool lower_el){
+void instruction_abort_handler(uint64_t el, uint64_t nb, uint64_t spsr_el, uint64_t elr_el, uint64_t esr_el, uint64_t far_el, bool lower_el) {
     uart_verbose(
         "Instruction Abort Handler Called with FAR : 0x%x\r\nAt ELR : 0x%x from %s\r\n",
         far_el, elr_el, (lower_el ? "lower EL" : "same EL"));
@@ -75,7 +75,7 @@ void instruction_abort_handler(uint64_t el, uint64_t nb, uint64_t spsr_el, uint6
         }
 }
 
-void data_abort_handler(uint64_t el, uint64_t nb, uint64_t spsr_el, uint64_t elr_el, uint64_t esr_el, uint64_t far_el, bool lower_el){
+void data_abort_handler(uint64_t el, uint64_t nb, uint64_t spsr_el, uint64_t elr_el, uint64_t esr_el, uint64_t far_el, bool lower_el) {
     uart_verbose(
         "Data Abort Handler Called with FAR : 0x%x\r\nAt ELR : 0x%x from %s\r\n",
         far_el, elr_el, (lower_el ? "lower EL" : "same EL"));
@@ -95,7 +95,7 @@ void data_abort_handler(uint64_t el, uint64_t nb, uint64_t spsr_el, uint64_t elr
         }
 }
 
-void c_sync_handler(uint64_t el, uint64_t nb, uint64_t spsr_el, uint64_t elr_el, uint64_t esr_el, uint64_t far_el){
+void c_sync_handler(uint64_t el, uint64_t nb, uint64_t spsr_el, uint64_t elr_el, uint64_t esr_el, uint64_t far_el) {
     /* el indicates exception level */
     uint64_t exception_class = (esr_el & 0xfc000000) >> 26;
     /* See ARm ARM 1878 for EC constants */
@@ -119,7 +119,7 @@ void c_sync_handler(uint64_t el, uint64_t nb, uint64_t spsr_el, uint64_t elr_el,
 }
 
 
-void c_serror_handler(uint64_t el, uint64_t nb, uint64_t elr_el, uint64_t spsr_el, uint64_t esr_el, uint64_t far_el){
+void c_serror_handler(uint64_t el, uint64_t nb, uint64_t elr_el, uint64_t spsr_el, uint64_t esr_el, uint64_t far_el) {
     uart_error(
         " System Error :\r\nAt level : EL%d\r\nCase nb :%d\r\n"
         "ELR_EL = 0x%x\r\nSPSR_EL = 0x%x\r\nESR_EL = 0x%x\r\nFAR_EL = 0x%x\r\n",
@@ -130,21 +130,21 @@ void c_serror_handler(uint64_t el, uint64_t nb, uint64_t elr_el, uint64_t spsr_e
 }
 
 /* TODO : get back info on the interrupt from GIC */
-void c_irq_handler(uint64_t el, uint64_t nb){
+void c_irq_handler(uint64_t el, uint64_t nb) {
     uart_error(
         " IRQ :\r\nAt level : EL%d\r\nCase nb :%d\r\n",
         el, nb);
     abort();
 }
 
-void c_fiq_handler(uint64_t el, uint64_t nb){
+void c_fiq_handler(uint64_t el, uint64_t nb) {
     uart_error(
         " FIQ :\r\nAt level : EL%d\r\nCase nb :%d\r\n",
         el,nb);
     abort();
 }
 
-void c_el2_handler(){
+void c_el2_handler() {
     uart_error("Interrupt handled at EL2 : non supported\r\nAborting...\r\n");
     abort();
 }

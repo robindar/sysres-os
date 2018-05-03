@@ -6,7 +6,7 @@ typedef struct {
     int col;
 } matrix;
 
-matrix new_matrix (int row_nb, int col_nb){
+matrix new_matrix (int row_nb, int col_nb) {
     matrix m;
     m.row = row_nb;
     m.col = col_nb;
@@ -18,7 +18,7 @@ matrix new_matrix (int row_nb, int col_nb){
     return m;
 }
 
-matrix new_identity(int row_nb, int col_nb){
+matrix new_identity(int row_nb, int col_nb) {
     int i,j;
     matrix m = new_matrix(row_nb, col_nb);
     for (i=0; i < m.row; i++){
@@ -29,7 +29,7 @@ matrix new_identity(int row_nb, int col_nb){
     return m;
 }
 
-matrix new_zero(int row_nb, int col_nb){
+matrix new_zero(int row_nb, int col_nb) {
     int i,j;
     matrix m = new_matrix(row_nb, col_nb);
     for (i=0; i < m.row; i++){
@@ -41,12 +41,12 @@ matrix new_zero(int row_nb, int col_nb){
 }
 
 
-void free_matrix (matrix * m){
+void free_matrix (matrix * m) {
     kfree(m->m);
 }
 
 /* Ok I don't have rand numbers yet... */
-void fill_rand(matrix * m){
+void fill_rand(matrix * m) {
     int i,j;
     for (i=0; i < m->row; i++){
         for (j=0; j < m->col; j++){
@@ -55,7 +55,7 @@ void fill_rand(matrix * m){
     }
 }
 
-void print_matrix(const matrix * m){
+void print_matrix(const matrix * m) {
     int i, j;
     for (i=0; i<m->row; i++){
         for (j=0; j<m->col; j++){
@@ -65,7 +65,7 @@ void print_matrix(const matrix * m){
     }
 }
 
-bool equal(const matrix a, const matrix b){
+bool equal(const matrix a, const matrix b) {
     bool res = (a.col == b.col) && (a.row == b.row);
     assert((a.col == b.col) && (a.row == b.row));
     int i,j;
@@ -77,7 +77,7 @@ bool equal(const matrix a, const matrix b){
     return res;
 }
 
-matrix new_product(matrix * a, matrix * b){
+matrix new_product(matrix * a, matrix * b) {
     if (a->col != b->row){
         uart_error("Impossible product");
         abort();
@@ -96,8 +96,7 @@ matrix new_product(matrix * a, matrix * b){
 }
 
 
-void matrix_main()
-{
+void matrix_main() {
     uart_debug("Entering matrix test\r\n");
     #define SZ 10
 
