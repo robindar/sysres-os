@@ -41,18 +41,20 @@ uint64_t get_end_offset(){
     return end_offset;
 }
 
+#define ABLOCK_SIZE sizeof(struct alloc_block)
 struct alloc_block {
     size_t size;
-    struct alloc_block *next;
+    struct alloc_block *next, *prev;
     int free;
 };
 
 void print_malloc_list () {
     uart_verbose("Printing malloc block list\r\n");
     struct alloc_block * block = global_base;
+    uart_verbose("Global base is at 0x%x\r\n", block);
     while (block) {
-        uart_verbose("Block(0x%x) has attributes size(0x%x) next(0x%x) free(0x%x)\r\n",
-                block, block->size, block->next, block->free);
+        uart_verbose("Block(0x%x) has attributes size(0x%x) prev(0x%x) next(0x%x) free(0x%x)\r\n",
+                block, block->size, block->prev, block->next, block->free);
         block = block->next;
     }
     uart_verbose("End of malloc block list\r\n");
@@ -76,19 +78,21 @@ struct alloc_block * find_free_block (struct alloc_block ** last, size_t size) {
 struct alloc_block * extend_heap (struct alloc_block * last, size_t size) {
     struct alloc_block *block;
     block = ksbrk(0);
-    void * request = ksbrk(size + sizeof(struct alloc_block));
+    void * request = ksbrk(size + ABLOCK_SIZE);
     assert((void *) block == request);
     if (request == (void *) -1)
         return NULL; // ksbrk failed
     if (last) { // NULL on first request, prevents NPE
         assert(last->next == NULL);
         last->next = block;
+        block->prev = last;
     }
     block->size = size;
+    block->prev = NULL;
     block->next = NULL;
     block->free = 0;
     uart_verbose("Heap extended with block (%x)\r\n", block);
-    assert((void *) block >= ((void *) last) + sizeof(struct alloc_block));
+    assert((void *) block >= ((void *) last) + ABLOCK_SIZE);
     return block;
 }
 
@@ -126,10 +130,30 @@ void * kmalloc (size_t size){
     return (block + 1);
 }
 
-void split_block (struct alloc_block * block, size_t size) {}
+void split_block (struct alloc_block * block, size_t size) {
+  assert(block->size >= size);
+  if (block->size > size + ABLOCK_SIZE) {
+    struct alloc_block * new;
+    new = block + ABLOCK_SIZE + size;
+    new->free = 1;
+    new->size = block->size - size - ABLOCK_SIZE;
+    new->prev = block;
+    new->next = block->next;
+    block->next = new;
+    if (new->next)
+      new->next->prev = new;
+  }
+}
 
 // Merge the given block with the next one, assumes both are free
-void merge_block (struct alloc_block * block) {}
+void merge_block (struct alloc_block * block) {
+  assert(block->free && block->next->free);
+  assert(block == block->next->prev);
+  block->size += ABLOCK_SIZE + block->next->size;
+  if (block->next->next)
+    block->next->next->prev = block;
+  block->next = block->next->next;
+}
 
 void kfree (void * ptr){
     if (!ptr)
@@ -137,6 +161,10 @@ void kfree (void * ptr){
     struct alloc_block * block_ptr = get_block_ptr(ptr);
     assert(block_ptr->free == 0);
     block_ptr->free = 1;
+    if (block_ptr->next && block_ptr->next->free)
+      merge_block(block_ptr);
+    if (block_ptr->prev && block_ptr->prev->free)
+      merge_block(block_ptr->prev);
 }
 
 void * krealloc (void * ptr, size_t size) {
