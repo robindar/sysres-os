@@ -119,15 +119,7 @@ curr_el_spx_serror:
 
  .balign 0x80
 lower_el_aarch64_sync:
-    stp x0, x1,  [sp, #-16]!
-    stp x2, x3,  [sp, #-16]!
-    stp x4, x5,  [sp, #-16]!
-    stp x6, x7,  [sp, #-16]!
-    stp x8, x9,  [sp, #-16]!
-    stp x10,x11, [sp, #-16]!
-    stp x12,x13, [sp, #-16]!
-    stp x14,x15, [sp, #-16]!
-    mov x8, 8
+    //Syscall handler
     b lower_el_el1_sync_handler
 
 .balign 0x80
@@ -231,6 +223,15 @@ lower_el_aarch32_serror:
     // If it's not we follwo the std path
     // (Tranlsation faults at EL0 will be handled in memory/mmu.c)
 lower_el_el1_sync_handler:
+    msr spsel, xzr                  //Switch to SP_EL0 (not to destroy application stack)
+    stp x0, x1,  [sp, #-16]!
+    stp x2, x3,  [sp, #-16]!
+    stp x4, x5,  [sp, #-16]!
+    stp x6, x7,  [sp, #-16]!
+    stp x8, x9,  [sp, #-16]!
+    stp x10,x11, [sp, #-16]!
+    stp x12,x13, [sp, #-16]!
+    stp x14,x15, [sp, #-16]!
     mrs x4, esr_el1
     //Now we want to read exception class to determine
     //if it's a syscall :
@@ -238,7 +239,7 @@ lower_el_el1_sync_handler:
     and x11, x4, #0xfc000000        //Mask to get Exception Class
     lsr x11, x11, 26                //21 -> SVC AArch64
     cmp x11, #21
-    bne curr_el_el1_sync_handler    //If SVC call, don-t jump
+    bne curr_el_el1_sync_handler    //If SVC call, don-t jump (if we jump we don't care about context backup...)
     //It-s a SVC call
     //Now backup everything : there will probably have a context switch
     //Don't forget to clean this
@@ -250,16 +251,17 @@ lower_el_el1_sync_handler:
     stp x26, x27,  [sp, #-16]!
     stp x28, x29,  [sp, #-16]!
     stp x30, x30,  [sp, #-16]!      //Stack has to be 16-byte aligned
-    msr spsel, xzr                   //Switch to SP_EL0 stack pointer
-    mov x0, sp                      //Backup SP_EL0
-    mov x2, #1
-    msr spsel, x2                    //Switch back to SP_EL1
+    add x0, sp, #(16 * 16)          //Backup SP_EL0 (as it was before interrupt)
     mrs x1, elr_el1
     mrs x2, spsr_el1                //Backup of pstate
     mov x3, sp                      //Handler SP
     bl save_context
     add sp, sp, #(32 * 8)           //Clean stack
     mrs x0, esr_el1                 //Move ESR_EL1 to X0
+    mov x2, #1
+    msr spsel, x2                   //Switch back to SP_EL1
+    ldr x2, = __mmu_tables_start ;  //Switch to kernel MMU to avoid breaking anything for the process
+    msr ttbr0_el1, x2               // Set ttbr0
     b c_el1_svc_aarch64_handler     //Warning this musn't return here
 
 curr_el_el1_sync_handler:

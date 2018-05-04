@@ -32,7 +32,7 @@ __attribute__((__noreturn__))
 void switch_to_proc(const proc_descriptor * proc){
     asm volatile("msr TTBR0_EL1, %0" : : "r"(proc->mem_conf.ttbr0_el1) : );
     asm volatile("ISB");
-    uart_info("Successfully switched to process MMU\r\n");
+    uart_verbose("Successfully switched to process MMU\r\n");
     restore_and_run((uint64_t) &(proc->saved_context.registers[N_REG - 1]),
                     proc->saved_context.pc,
                     proc->saved_context.sp,

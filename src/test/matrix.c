@@ -45,6 +45,15 @@ void free_matrix (matrix * m) {
     kfree(m->m);
 }
 
+void fill_id(matrix * m) {
+    int i,j;
+    for (i=0; i < m->row; i++){
+        for (j=0; j < m->col; j++){
+            *(m->m + i*m->col + j) = (i == j) ? 1 : 0;
+        }
+    }
+}
+
 /* Ok I don't have rand numbers yet... */
 void fill_rand(matrix * m) {
     int i,j;
@@ -95,10 +104,35 @@ matrix new_product(matrix * a, matrix * b) {
     return c;
 }
 
+void syscall_test_product(matrix * a, matrix * b, matrix * c) {
+    if (a->col != b->row){
+        uart_error("Impossible product");
+        abort();
+    }
+    int n = a->col;
+    int i, j, k;
+    asm volatile("svc #101");
+    for(i = 0; i < c->row; i++){
+        asm volatile("svc #101");
+        for(j = 0; j < c->col; j++){
+            asm volatile("svc #101");
+            for(k = 0; k < n; k++){
+                asm volatile("svc #101");
+                *(c->m + i * c->col + j) += *(a->m + i*a->col + k) * *(b->m + k*b->col + j);
+                asm volatile("svc #101");
+            }
+            asm volatile("svc #101");
+        }
+        asm volatile("svc #101");
+    }
+    asm volatile("svc #101");
+    return;
+}
+
 
 void matrix_main() {
     uart_debug("Entering matrix test\r\n");
-    #define SZ 10
+    #define SZ 100
 
     matrix a, b, c;
 
@@ -109,3 +143,23 @@ void matrix_main() {
     assert(equal(b, c));
     uart_debug("Done matrix test\r\n");
 }
+
+/* void matrix_id_sys_call_test(){ */
+/*     uart_debug("Entering matrix_id_syscall_test\r\n"); */
+/*     int a_m [SZ * SZ]; */
+/*     int b_m [SZ * SZ]; */
+/*     int c_m [SZ * SZ]; */
+/*     matrix a,b,c; */
+/*     a.col = a.row = SZ; */
+/*     b.col = b.row = SZ; */
+/*     c.col = c.row = SZ; */
+/*     a.m = a_m; */
+/*     b.m = b_m; */
+/*     c.m = c_m; */
+/*     fill_rand(&b); */
+/*     fill_id(&a); */
+/*     uart_debug("Test init is done\r\n"); */
+/*     syscall_test_product(&a,&b, &c); */
+/*     assert(equal(b,c)); */
+/*     uart_debug("Done matrix_id_syscall_test\r\n"); */
+/* } */

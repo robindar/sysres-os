@@ -120,18 +120,23 @@ void c_el1_svc_aarch64_handler(uint64_t esr_el1){
     uint16_t syscall = (esr_el1 & MASK(15,0));
     //get back syscall code (ARM ARM 2453 for encoding)
     switch(syscall){
-        case 100:
-            /* Halt syscall (halt cannot be executed at EL0) */
-            uart_verbose("Syscall code 100 : Halt\r\n");
-            halt();
-            break;
-        default:
-            uart_error(
-                "Error no syscall SVC Aarch64 corresponding to code %d\r\n",
-                syscall);
-            display_esr_eln_info(esr_el1);
-            uart_error("Aborting...\r\n");
-            abort();
+    case 1:
+        /* Test syscall : does nothing */
+        /* uart_verbose("Syscall code 101 : Test id\r\n"); */
+        /* run_process(&sys_state.procs[sys_state.curr_pid]); */
+        /* break; */
+    case 100:
+        /* Halt syscall (halt cannot be executed at EL0) */
+        uart_verbose("Syscall code 100 : Halt\r\n");
+        halt();
+        break;
+    default:
+        uart_error(
+            "Error no syscall SVC Aarch64 corresponding to code %d\r\n",
+            syscall);
+        display_esr_eln_info(esr_el1);
+        uart_error("Aborting...\r\n");
+        abort();
     }
 }
 
