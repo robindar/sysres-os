@@ -1,12 +1,12 @@
 #ifndef TEST_H
 #define TEST_H
 
-#include "../memory/alloc.h"
-#include "../libc/debug/debug.h"
-#include "../libc/uart/uart.h"
-#include "../memory/mmu.h"
-#include <stdint.h>
 #include <stdbool.h>
+#include <stdint.h>
+#include "../memory/alloc.h"
+#include "../libk/debug.h"
+#include "../libk/uart.h"
+#include "../memory/mmu.h"
 
 void print_formatting_tests();
 void debug_test();

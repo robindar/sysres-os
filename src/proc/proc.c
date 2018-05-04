@@ -1,11 +1,11 @@
 #include "proc.h"
 #include "proc_mmu.h"
-#include "../libc/uart/uart.h"
-#include "../libc/debug/debug.h"
-#include "../libc/misc.h"
+#include "../interrupt/interrupt.h"
+#include "../libk/debug.h"
+#include "../libk/misc.h"
+#include "../libk/uart.h"
 #include "../memory/alloc.h"
 #include "../usr/init.h"
-#include "../interrupt.h"
 
 
 /**** INIT *****/

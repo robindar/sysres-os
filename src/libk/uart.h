@@ -1,8 +1,8 @@
-#include <stddef.h>
-#include <stdint.h>
 #include <stdarg.h>
 #include <stdbool.h>
-#include "../misc.h"
+#include <stddef.h>
+#include <stdint.h>
+#include "misc.h"
 
 #ifndef UART_H
 #define UART_H

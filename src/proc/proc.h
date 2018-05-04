@@ -1,8 +1,8 @@
 #ifndef PROC_H
 #define PROC_H
 
-#include <stdint.h>
 #include <stdbool.h>
+#include <stdint.h>
 
 
 /* We will follow first the specifications of the micro-kernel given during the classs */

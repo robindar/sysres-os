@@ -1,5 +1,5 @@
 #include "uart.h"
-#include "../misc.h"
+#include "misc.h"
 
 #ifdef HARDWARE
 /*

@@ -1,12 +1,8 @@
 #include <stddef.h>
 #include <stdint.h>
-#include "libc/uart/uart.h"
-#include "libc/misc.h"
-#include "libc/debug/debug.h"
-#include "interrupt.h"
-#include "memory/alloc.h"
-#include "test/test.h"
-#include "proc/proc.h"
+#include "proc.h"
+#include "../libk/uart.h"
+#include "../memory/alloc.h"
 
 #if defined(__cplusplus)
 extern "C" /* Use C linkage for kernel_main. */

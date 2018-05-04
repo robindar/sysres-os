@@ -11,4 +11,5 @@ void *memset (void *dst, int value, size_t);
 size_t strlen (const char *);
 
 char * strerror (int errno);
+
 #endif

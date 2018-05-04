@@ -1,8 +1,5 @@
-#include "../libc/uart/uart.h"
-#include "../libc/debug/debug.h"
-
-
-
+#include "../libk/debug.h"
+#include "../libk/uart.h"
 
 void proc0_main(){
     uint64_t x;

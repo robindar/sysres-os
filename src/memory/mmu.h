@@ -3,9 +3,9 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include "../libc/uart/uart.h"
-#include "../libc/debug/debug.h"
 #include "alloc.h"
+#include "../libk/debug.h"
+#include "../libk/uart.h"
 
 #define one_u64 ((uint64_t) 1)
 #define AT(addr) (* (uint64_t *) (addr))

@@ -1,6 +1,6 @@
 #include "test.h"
-#include "../libc/uart/uart.h"
-#include "../libc/debug/debug.h"
+#include "../libk/debug.h"
+#include "../libk/uart.h"
 
 void print_formatting_tests() {
     uart_debug("Performing printf formatting tests:\r\n");

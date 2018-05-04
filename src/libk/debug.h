@@ -1,7 +1,7 @@
 #ifndef DEBUG_H
 #define DEBUG_H
 
-#include "stdint.h"
+#include <stdint.h>
 
 #define print_reg(reg) \
   uint64_t __variable__print__reg__ = 0;\

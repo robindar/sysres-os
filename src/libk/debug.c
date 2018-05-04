@@ -1,6 +1,6 @@
-#include "debug.h"
-#include "../uart/uart.h"
 #include <stdint.h>
+#include "debug.h"
+#include "uart.h"
 
 __attribute__((__noreturn__))
 void abort(){

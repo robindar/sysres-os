@@ -4,8 +4,8 @@
 #include <stdint.h>
 #include <unistd.h>
 #include "mmu.h"
-#include "../libc/string.h"
-#include "../libc/uart/uart.h"
+#include "../libk/string.h"
+#include "../libk/uart.h"
 
 /* Stack begins at #3F200000 see boot.s */
 #define STACK_BEGIN GPIO_BASE
