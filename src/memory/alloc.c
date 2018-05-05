@@ -41,6 +41,22 @@ uint64_t get_end_offset(){
     return end_offset;
 }
 
+void * get_global_base(){
+    return global_base;
+}
+
+void set_heap_begin(uint64_t val){
+    heap_begin = val;
+}
+
+void set_end_offset(int val){
+    end_offset = val;
+}
+
+void set_global_base(void * val){
+    global_base = val;
+}
+
 #ifdef MALLOC_VERBOSE
 #define malloc_verbose(...) uart_verbose(__VA_ARGS__)
 #else

@@ -15,7 +15,12 @@ void * ksbrk(int increment);
 void init_alloc();
 void * kmalloc(size_t size);
 void kfree(void * p);
+/* Internal state of alloc related funcs */
 uint64_t get_heap_begin();
 uint64_t get_end_offset();
+void * get_global_base();
+void set_heap_begin(uint64_t val);
+void set_end_offset(int val);
+void set_global_base(void * val);
 
 #endif

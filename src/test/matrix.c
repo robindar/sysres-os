@@ -135,6 +135,12 @@ void matrix_main() {
     #define SZ 100
 
     matrix a, b, c;
+    /* The three following lines work */
+    matrix * p = &a;
+    assert(p != NULL);
+    uart_verbose("p = 0x%x\r\n", p);
+    /* This doesn't work */
+    uart_verbose("&a = 0x%x\r\n&b = 0x%x\r\n&b = 0x%x\r\n", &a, &b, &c);
 
     a = new_identity(SZ ,SZ);
     b = new_matrix(SZ ,SZ);
