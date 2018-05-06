@@ -27,7 +27,7 @@ proc_descriptor new_proc_descriptor(int pid, int parent_pid, int priority, uint6
     proc.priority             = priority;
     proc.state                = RUNNABLE;
     proc.sched_policy         = DEFAULT;
-    proc.mem_conf.initialized = false;
+    proc.initialized          = false;
     proc.saved_context.pstate = new_el0_pstate();
     proc.saved_context.sp     = STACK_BEGIN;
     proc.saved_context.pc     = pc;
@@ -67,7 +67,37 @@ void init_proc(){
 
 
 /****  CONTEXT  ****/
+void save_errno(){
+    proc_descriptor * proc = &sys_state.procs[sys_state.curr_pid];
+    proc->errno = errno;
+    return;
+}
+
+void restore_errno(const proc_descriptor * proc){
+    errno = proc->errno;
+}
+
+void save_alloc_conf(){
+    proc_descriptor * proc = &sys_state.procs[sys_state.curr_pid];
+    /* No need to touch mem_conf.ttbr0_el1 : it is cst for a given proc */
+    proc->mem_conf.heap_begin = get_heap_begin();
+    proc->mem_conf.end_offset = get_end_offset();
+    proc->mem_conf.global_base = get_global_base();
+    return;
+}
+
+/* WARNING : kernel memory alloc functions mustn't be called after this*/
+void restore_alloc_conf(const proc_descriptor * proc){
+    set_heap_begin(proc->mem_conf.heap_begin);
+    set_end_offset(proc->mem_conf.end_offset);
+    set_global_base(proc->mem_conf.global_base);
+    return;
+}
+
 /* TODO : NEON/SIMD registers ?? */
+/* Warning :
+   may be confusing, but it does more thing than its counterpart restore_context */
+/* We are still with the proc MMU and SP */
 void save_context(uint64_t sp, uint64_t elr_el1, uint64_t pstate, uint64_t handler_sp){
     context * const ctx = &(sys_state.procs[sys_state.curr_pid].saved_context);
     ctx->sp = sp;
@@ -76,39 +106,38 @@ void save_context(uint64_t sp, uint64_t elr_el1, uint64_t pstate, uint64_t handl
     for(int i = 0; i < N_REG; i++){
         ctx->registers[i] = AT(handler_sp + (N_REG + 1 - i) * sizeof(uint64_t));
     }
+    save_alloc_conf();
+    save_errno();
+    /* We are in kernel mode now */
+    sys_state.last_pid = sys_state.curr_pid;
+    sys_state.curr_pid = 0;
     return;
 }
 
 /* Run again process */
 /* Assumes MMU, Stack... is already set up */
 __attribute__((__noreturn__))
-void run_process(const proc_descriptor * proc){
+void run_process(proc_descriptor * proc){
     uart_verbose("Preparing to run process with PID %d with code at address 0x%x\r\n", proc->pid, proc->saved_context.pc);
     assert(proc->pid > 0);      /* Should not be used on kernel */
     assert(proc->state == RUNNABLE);
-    assert(proc->mem_conf.initialized);
+    /* Must be in kernel mode */
+    assert(sys_state.curr_pid == 0);
+    /* Backup alloc info for kernel */
+    save_alloc_conf();
+     if(!proc->initialized){
+         /* Init proc MMU */
+        set_up_memory_new_proc(proc);
+    }
     sys_state.curr_pid = proc -> pid;
     switch_to_proc(proc);
 }
 
 /**** START PROCESS ****/
 
-/* Start a new process (set up MMU, stack...) */
-__attribute__((__noreturn__))
-int start_process(proc_descriptor * proc){
-    assert(!proc->mem_conf.initialized);
-    assert(proc->pid > 0);
-    proc->mem_conf.initialized = true;
-    /* We expect at least pc to be set */
-    /* Here proc param ttbr0 and sp are set */
-    set_up_memory_new_proc(proc);
-    run_process(proc);
-}
-
-
+/* Kernel function only */
 int exec_proc(int pid){
-    if(sys_state.procs[pid].mem_conf.initialized) run_process(&sys_state.procs[pid]);
-    else start_process(&sys_state.procs[pid]);
+    run_process(&sys_state.procs[pid]);
 }
 
 
@@ -128,7 +157,7 @@ void c_el1_svc_aarch64_handler(uint64_t esr_el1){
     case 101:
         /* Test syscall : does nothing */
         uart_verbose("Syscall code 101 : Test id\r\n");
-        run_process(&sys_state.procs[sys_state.curr_pid]);
+        run_process(&sys_state.procs[sys_state.last_pid]);
         break;
     default:
         uart_error(

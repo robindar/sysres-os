@@ -140,7 +140,7 @@ void matrix_main() {
     assert(p != NULL);
     uart_verbose("p = 0x%x\r\n", p);
     /* This doesn't work */
-    uart_verbose("&a = 0x%x\r\n&b = 0x%x\r\n&b = 0x%x\r\n", &a, &b, &c);
+    /* uart_verbose("&a = 0x%x\r\n&b = 0x%x\r\n&b = 0x%x\r\n", &a, &b, &c); */
 
     a = new_identity(SZ ,SZ);
     b = new_matrix(SZ ,SZ);

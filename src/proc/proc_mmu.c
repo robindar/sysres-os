@@ -29,10 +29,18 @@ void set_up_memory_new_proc(proc_descriptor * proc){
 /* However the stack is completly anhilited so don't return ! */
 /* Thanks to the ASID we don't need to clean the TLB (ARMv8-A Address Translation) */
 __attribute__((__noreturn__))
-void switch_to_proc(const proc_descriptor * proc){
-    asm volatile("msr TTBR0_EL1, %0" : : "r"(proc->mem_conf.ttbr0_el1) : );
-    asm volatile("ISB");
-    uart_verbose("Successfully switched to process MMU\r\n");
+void switch_to_proc(proc_descriptor * proc){
+    /* Ugly hack : we need to preserve proc even in case it is on the stack (-O0) */
+    asm volatile("mov x25, %1;"\
+                 "msr TTBR0_EL1, %2;"\
+                 "ISB;"\
+                 "mov %0, x25;"\
+                 :"=r"(proc) : "r"(proc), "r"(proc->mem_conf.ttbr0_el1) :"x25");
+    /* As data is id mapped, we can set global var now */
+    if(!proc->initialized) init_alloc();
+    else restore_alloc_conf(proc);
+    restore_errno(proc);
+    proc->initialized = true;
     restore_and_run((uint64_t) &(proc->saved_context.registers[N_REG - 1]),
                     proc->saved_context.pc,
                     proc->saved_context.sp,

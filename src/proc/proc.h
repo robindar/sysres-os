@@ -3,7 +3,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
-
+#include "../libk/errno.h"
 
 /* We will follow first the specifications of the micro-kernel given during the classs */
 
@@ -40,9 +40,10 @@ typedef struct {
     /* -> this is a bit redundant with our new scheme for mmu table alloc but we'll keep it anyway */
     /* For now we don't use ttbr1_el1*/
 
-    /* Indicates whether its address space has been initialized*/
-    /* ie whether start_process has ever been called on it */
-    bool initialized;
+    /* Backup of alloc.c global var */
+    uint64_t heap_begin;
+    int end_offset;
+    void * global_base;
 } mem_conf;
 
 typedef struct{
@@ -51,16 +52,23 @@ typedef struct{
     int priority; /* Priority from 0 to 15, 15 being the highest */
     enum proc_state state;
     enum sched_policy sched_policy;
+    /* Indicates whether this process has already been run/ initialized */
+    bool initialized;
     context saved_context;
     mem_conf mem_conf;
+    int errno;
     /* TODO : channels */
 } proc_descriptor;
 
 typedef struct{
     int curr_pid;
+    int last_pid;               /* Only used if curr_pid == 0 */
     proc_descriptor procs[MAX_PROC];
 } system_state;
 
 void init_proc();
 int exec_proc(int pid);
+void restore_errno(const proc_descriptor * proc);
+/* WARNING : kernel memory alloc functions mustn't be called after this*/
+void restore_alloc_conf(const proc_descriptor * proc);
 #endif

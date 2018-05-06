@@ -12,7 +12,7 @@ void proc0_main(){
     /* *p = x; */
     /* uart_debug("x = 0x%x\r\n", x); */
     uart_info("Init process running\r\n");
-    matrix_main();
+    SYSCALL(101);
     uart_info("Halting...\r\n");
     /* Halt syscall : TODO : do a lovely interface */
     SYSCALL(100);

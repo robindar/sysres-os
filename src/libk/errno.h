@@ -11,5 +11,4 @@
  * errno = ECUSTOMERROR | 83;
  */
 int errno;
-
 #endif
