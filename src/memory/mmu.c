@@ -519,10 +519,22 @@ void translation_fault_handler(uint64_t fault_address, int level, bool lower_el)
     uart_verbose("Translation fault handler called at %s\r\n", lower_el ? "lower EL" : "same EL");
     /* For now no distnction between EL, the same difference is TTBR0 which is detected auto */
     set_lvl2_address_from_TTBR0_EL1();
-    assert(fault_address >= get_heap_begin());
-    /* WARNING : our handling of the stack is extremely dangerous and NEEDS to be fixed */
-    /* Indeed, right now if the kernel overflows the only page of cache allowed, (even without the next assert) it will get bogged down at curr_el_spx_sync because there will be no stack available : so maybe alloc two pages for the stack at init and that's all ? */
-    /* assert(fault_address < get_heap_begin() + get_end_offset()); */
+    uint64_t stack_pointer = 0;
+    asm volatile (
+        "msr spsel, xzr;" \
+        "mov x0, sp;" \
+        "mov x1, #1;" \
+        "msr spsel, x1;" \
+        "mov %0, x0"
+        : "=r"(stack_pointer)
+        :
+        : "x0", "x1" );
+    if (stack_pointer < STACK_END)
+        assert(0); // TODO: STACK OVERFLOW
+    if (!(fault_address >= get_heap_begin() &&
+        fault_address < get_heap_begin() + get_end_offset())) {
+        assert(0); // TODO: SEGFAULT - kill process
+    }
     if (!lower_el)
         get_new_page(fault_address, KERNEL_PAGE | ACCESS_FLAG_SET, NORMAL_WT_NT);
     else
