@@ -15,9 +15,10 @@ else
 LOG_ARG :=
 endif
 
-SFLAGS += -mcpu=$(MCPU) -fpic -ffreestanding
+OPT    ?= g
+SFLAGS += -mcpu=$(MCPU)  -ffreestanding
 CFLAGS += $(LOG_ARG)
-CFLAGS += -mcpu=$(MCPU) -fpic -ffreestanding -std=gnu99 -O1 -Wall -Wextra -nostdlib -g
+CFLAGS += -mcpu=$(MCPU)  -ffreestanding -std=gnu99 -O$(OPT) -Wall -Wextra -nostdlib -g
 ASFLAGS += -g
 
 c_src = $(shell find src -type f -name "*.c")
