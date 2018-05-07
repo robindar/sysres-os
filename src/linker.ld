@@ -11,10 +11,13 @@ SECTIONS
 		KEEP(*(.text.boot))
 			*(.text)
 	}
+        /* Alignement constraint */
         . = ALIGN(0x1000);
-        __data_start = .;
-	.rodata ALIGN(0x1000) : AT(ADDR(.rodata) - 0x00000000)
+        /* Outputs an error if the kernel oversteps 0x8000 */
+	.rodata 0x8000 : AT(ADDR(.rodata) - 0x00000000)
 	{
+                __data_start = .;
+                /* TODO : put this as read-only */
 		*(.rodata)
 	}
 	.data ALIGN(0x1000) : AT(ADDR(.data) - 0x00000000)
