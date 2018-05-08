@@ -1,8 +1,10 @@
 #include <stddef.h>
 #include <stdint.h>
 #include "proc.h"
+#include "../libk/errno.h"
 #include "../libk/uart.h"
 #include "../memory/alloc.h"
+#include "../test/test.h"
 
 #if defined(__cplusplus)
 extern "C" /* Use C linkage for kernel_main. */
@@ -20,6 +22,7 @@ void kernel_main(uint64_t r0, uint64_t r1, uint64_t atags) {
     (void) r1;
     (void) atags;
     kernel_init();
+    malloc_test();
     /* Start init process */
     exec_proc(1);
 }

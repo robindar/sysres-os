@@ -5,10 +5,7 @@
 /* Which is necessary for MMU initialization for procs */
 /* So we can keep kernel MMU on during setup */
 static uint64_t lvl2_table_address;
-/* This variable has to be set at each entry point of this file :*/
-/* - c_init_mmu */
-/* - translation_fault_handler */
-/* - acess_flag_fault_handler */
+/* See doc/proc.md for where it is initialized */
 
 
 block_attributes_sg1 new_block_attributes_sg1(enum block_perm_config perm_config, enum block_cache_config cache_config) {
@@ -243,6 +240,7 @@ uint64_t get_lvl2_table_address_from_TTBR0(uint64_t ttbr0_el1){
     return (ttbr0_el1 & MASK(47,1));
 }
 
+
 void set_lvl2_address_from_TTBR0_EL1(){
     uint64_t lvl2_address;
     asm volatile ("mrs %0, TTBR0_EL1" : "=r"(lvl2_address) : :);
@@ -305,6 +303,8 @@ void check_identity_paging(uint64_t id_paging_size){
 uint64_t identity_paging() {
     uart_info("Binding identity\r\n");
     block_attributes_sg1 kernel_ba = new_block_attributes_sg1(KERNEL_PAGE | ACCESS_FLAG_SET, NORMAL_WT_NT);
+    /* For debugging (so gdb can read code whatever the level) TODO : REMOVE ? */
+    block_attributes_sg1 code_ba   = new_block_attributes_sg1(  CODE_PAGE | ACCESS_FLAG_SET, NORMAL_WT_NT);
     block_attributes_sg1 data_ba   = new_block_attributes_sg1(  DATA_PAGE | ACCESS_FLAG_SET, NORMAL_WT_NT);
     uint64_t id_paging_size, data_start, bss_end;
     /* Everything is GRANULE aligned */
@@ -318,7 +318,7 @@ uint64_t identity_paging() {
     uint64_t physical_pnt;
     /* Kernel zone : 0x0 - data_start (~0x6000) */
     for (physical_pnt = 0; physical_pnt < data_start; physical_pnt += GRANULE) {
-        status = bind_address(physical_pnt, physical_pnt, kernel_ba);
+        status = bind_address(physical_pnt, physical_pnt, code_ba);
         if (status)
             uart_verbose("Invalid status found at 0x%x : %d\r\n", physical_pnt, status);
     }
@@ -485,7 +485,6 @@ void free_physical_page(uint64_t physical_addr) {
 /* returns get_lvl3_address status */
 /* free the page from any inside address : ie given any virtual address, frees the page that contains it */
 int free_virtual_page(uint64_t virtual_addr) {
-    set_lvl2_address_from_TTBR0_EL1();
     uint64_t lvl3_entry_phys_address = get_lvl3_entry_phys_address(virtual_addr);
     uint64_t physical_address = get_address_sg1(lvl3_entry_phys_address);
     set_invalid_entry(lvl3_entry_phys_address);
@@ -514,43 +513,47 @@ int free_virtual_page(uint64_t virtual_addr) {
     return status;
 }
 
-void translation_fault_handler(uint64_t fault_address, int level, bool lower_el) {
+void translation_fault_handler(uint64_t fault_address, int level, bool lower_el, int pid) {
     (void) level;
-    uart_verbose("Translation fault handler called at %s\r\n", lower_el ? "lower EL" : "same EL");
+    uart_verbose("Translation fault handler called at %s from PID %d\r\n", lower_el ? "lower EL" : "same EL", pid);
     /* For now no distnction between EL, the same difference is TTBR0 which is detected auto */
-    set_lvl2_address_from_TTBR0_EL1();
+    lvl2_table_address = get_lvl2_address_from_sys_state(pid);
     uint64_t stack_pointer = 0;
+    /* Don't forget to backup SPSel, you don't know who called (yet we are at EL1 for sure)*/
+    uint64_t SPSel = lower_el ? 0 : 1;
     asm volatile (
-        "msr spsel, xzr;" \
+        "mrs x1, spsel;" \
+        "msr spsel, %1;" \
         "mov x0, sp;" \
-        "mov x1, #1;" \
         "msr spsel, x1;" \
         "mov %0, x0"
         : "=r"(stack_pointer)
-        :
+        :  "r"(SPSel)
         : "x0", "x1" );
-    if (stack_pointer < STACK_END)
+    /* The stack can't "claim" more pages : this is only used for heap memory and to detect stack overflow */
+    if (stack_pointer < STACK_END &&
+        fault_address > stack_pointer && fault_address < STACK_END)
         assert(0); // TODO: STACK OVERFLOW
     if (!(fault_address >= get_heap_begin() &&
         fault_address < get_heap_begin() + get_end_offset())) {
+        uart_verbose("SEGFAULT :\r\nFAR : 0x%x\r\nheap_begin : 0x%x\r\nend_offset : 0x%x\r\n", fault_address, get_heap_begin(), get_end_offset());
         assert(0); // TODO: SEGFAULT - kill process
     }
     if (!lower_el)
         get_new_page(fault_address, KERNEL_PAGE | ACCESS_FLAG_SET, NORMAL_WT_NT);
     else
-        get_new_page(fault_address, USER_PAGE | ACCESS_FLAG_SET, NORMAL_WT_NT);
+        get_new_page(fault_address,   USER_PAGE | ACCESS_FLAG_SET, NORMAL_WT_NT);
     asm volatile("ISB");
     uart_verbose("Translation fault handler returns\r\n");
     return;
 };
 
-void access_flag_fault_lvl3_handler(uint64_t fault_address, int level, bool lower_lvl) {
+void access_flag_fault_lvl3_handler(uint64_t fault_address, int level, bool lower_lvl, int pid) {
     (void) level;
     (void) lower_lvl;
     uart_verbose("Access flag fault handler called\r\n");
-    set_lvl2_address_from_TTBR0_EL1();
-    set_page_access_flag(fault_address);
-    return;
+    lvl2_table_address = get_lvl2_address_from_sys_state(pid);
+    set_page_access_flag(fault_address);    return;
 }
 
 uint64_t get_page_permission(uint64_t virtual_addr) {

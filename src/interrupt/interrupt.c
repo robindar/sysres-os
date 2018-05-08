@@ -60,15 +60,16 @@ void instruction_abort_handler(uint64_t el, uint64_t nb, uint64_t spsr_el, uint6
         "Instruction Abort Handler Called with FAR : 0x%x\r\nAt ELR : 0x%x from %s\r\n",
         far_el, elr_el, (lower_el ? "lower EL" : "same EL"));
         uint64_t instruction_fault_status_code = esr_el & MASK(5,0);
+        int pid = get_curr_pid();
         switch(instruction_fault_status_code){
         case 0b110:             /* Transltation fault level 2 */
-            translation_fault_handler(far_el, 2, lower_el);
+            translation_fault_handler(far_el, 2, lower_el, pid);
             break;
         case 0b111:             /* Transltation fault level 3 */
-            translation_fault_handler(far_el, 3, lower_el);
+            translation_fault_handler(far_el, 3, lower_el, pid);
             break;
         case 0b1011:            /* Access flag fault level 3 */
-            access_flag_fault_lvl3_handler(far_el, 3, lower_el);
+            access_flag_fault_lvl3_handler(far_el, 3, lower_el, pid);
             break;
         default:
             display_error("Instruction Abort Error", el, nb, spsr_el, elr_el, esr_el, far_el);
@@ -80,15 +81,16 @@ void data_abort_handler(uint64_t el, uint64_t nb, uint64_t spsr_el, uint64_t elr
         "Data Abort Handler Called with FAR : 0x%x\r\nAt ELR : 0x%x from %s\r\n",
         far_el, elr_el, (lower_el ? "lower EL" : "same EL"));
         uint64_t data_fault_status_code = esr_el & MASK(5,0);
+        int pid = get_curr_pid();
         switch(data_fault_status_code){
         case 0b110:             /* Transltation fault level 2 */
-            translation_fault_handler(far_el, 2, lower_el);
+            translation_fault_handler(far_el, 2, lower_el, pid);
             break;
         case 0b111:             /* Transltation fault level 3 */
-            translation_fault_handler(far_el, 3, lower_el);
+            translation_fault_handler(far_el, 3, lower_el, pid);
             break;
         case 0b1011:            /* Access flag fault level 3 */
-            access_flag_fault_lvl3_handler(far_el, 3, lower_el);
+            access_flag_fault_lvl3_handler(far_el, 3, lower_el, pid);
             break;
         default:
             display_error("Data Abort Error", el, nb, spsr_el, elr_el, esr_el, far_el);

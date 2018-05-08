@@ -3,7 +3,7 @@ MCPU     ?= cortex-a53
 MEMORY   ?= 1024
 MACHINE  ?= raspi3
 
-#Warning should be an AAtch64 gdb
+#Warning should be an AArch64 gdb
 GDB          ?= gdb
 ARMTOOLCHAIN ?= aarch64-linux-gnu
 QEMU         ?= $(shell which qemu-system-aarch64 2>/dev/null)

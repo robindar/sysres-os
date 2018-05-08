@@ -71,4 +71,7 @@ int exec_proc(int pid);
 void restore_errno(const proc_descriptor * proc);
 /* WARNING : kernel memory alloc functions mustn't be called after this*/
 void restore_alloc_conf(const proc_descriptor * proc);
+uint64_t get_lvl2_address_from_sys_state(int pid);
+int get_curr_pid();
+
 #endif

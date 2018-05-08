@@ -23,4 +23,16 @@ Then Stack/Heap
 => Hence the kernel can be set as global
 
 
+# Things to save and restore #
+- TTBR0_EL1 :
+            - Doesn't need to be back up at process interruption as it is fixed for each proc and determined at the first run (same for kernel)
+            - However, the register and the global var need to be updated :
+            - Run process :
+              Change TTBR0_EL1 and do a call to set_lvl2_table_address_from_TTBR0_EL1 (AT EL1 ! TTBR0_EL1 cannot be accessed at EL0) (see swict_to_proc in proc_mmu.c)
+            - Process interruption :
+              Restore kernel TTBR0_EL1 (done in lower_el_el1_sync_handler AFTER a call to backup context) and call set_lvl2_table_address_from_TTBR0_EL1
+              (in c_el1_svc_aarch64_sync_handler)
+            - Thus there is no need for set_lvl2_table_address_from_TTBR0_EL1 to be called in mmu.c
+
+
 

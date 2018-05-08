@@ -6,7 +6,7 @@
 #include "../libk/uart.h"
 #include "../memory/alloc.h"
 #include "../usr/init.h"
-
+#include "../libk/errno.h"
 
 /**** INIT *****/
 /* Warning : do not remove the "static" here o/w it leads to strange behavior */
@@ -146,6 +146,7 @@ int exec_proc(int pid){
 /* Should not return */
 __attribute__((__noreturn__))
 void c_el1_svc_aarch64_handler(uint64_t esr_el1){
+    set_lvl2_address_from_TTBR0_EL1();
     uint16_t syscall = (esr_el1 & MASK(15,0));
     //get back syscall code (ARM ARM 2453 for encoding)
     switch(syscall){
@@ -169,7 +170,18 @@ void c_el1_svc_aarch64_handler(uint64_t esr_el1){
     }
 }
 
+/****  SYS_STATE book-keeping for other files *****/
+/* Warning : ranslation_fault_handler uses this (and free may ine the future)*/
+uint64_t get_lvl2_address_from_sys_state(int pid){
+    uint64_t lvl2_address;
+    lvl2_address = sys_state.procs[pid].mem_conf.ttbr0_el1;
+    lvl2_address &= MASK(47,1);
+    return lvl2_address;
+}
 
+int get_curr_pid(){
+    return sys_state.curr_pid;
+}
 
 
 

@@ -40,6 +40,7 @@ void switch_to_proc(proc_descriptor * proc){
     if(!proc->initialized) init_alloc();
     else restore_alloc_conf(proc);
     restore_errno(proc);
+    set_lvl2_address_from_TTBR0_EL1();
     proc->initialized = true;
     restore_and_run((uint64_t) &(proc->saved_context.registers[N_REG - 1]),
                     proc->saved_context.pc,

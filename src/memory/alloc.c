@@ -4,7 +4,7 @@
 static uint64_t heap_begin;
 static int end_offset;
 
-void * global_base;
+static void * global_base;
 
 void init_alloc(){
     uart_info("Init Alloc...\r\n");
@@ -99,6 +99,7 @@ void split_block (struct alloc_block * block, size_t size) {
   if (block->size > size + ABLOCK_SIZE) {
     struct alloc_block * new;
     new = block + ABLOCK_SIZE + size;
+    malloc_verbose("New block at 0x%x\r\n", new);
     new->free = 1;
     new->size = block->size - size - ABLOCK_SIZE;
     block->size = size;

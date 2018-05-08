@@ -10,5 +10,6 @@
  * errno = EACCESS;
  * errno = ECUSTOMERROR | 83;
  */
-int errno;
+/* Screw up good practices, nothing else worked */
+extern int errno;
 #endif

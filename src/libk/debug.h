@@ -10,8 +10,8 @@
 
 #define assert(cond) \
     if((cond) == 0){ \
-        uart_error("Assertion \"" #cond "\" failed at %s:%d\r\n",\
-                   __FILE__, __LINE__);\
+        uart_error("Assertion \"" #cond "\" failed at %s:%d in \"%s\"\r\n",\
+                   __FILE__, __LINE__, __func__);\
         abort(); \
     }; \
 
