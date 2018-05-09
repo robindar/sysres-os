@@ -57,6 +57,7 @@ void set_global_base(void * val){
     global_base = val;
 }
 
+#define MALLOC_VERBOSE
 #ifdef MALLOC_VERBOSE
 #define malloc_verbose(...) uart_verbose(__VA_ARGS__)
 #else
@@ -95,10 +96,14 @@ void print_malloc_list () {
 }
 
 void split_block (struct alloc_block * block, size_t size) {
+  malloc_verbose("Got block to split at 0x%x, size 0x%x\r\n", block, size);
+#ifdef MALLOC_VERBOSE
+  print_malloc_list();
+#endif
   assert(block->size >= size);
   if (block->size > size + ABLOCK_SIZE) {
     struct alloc_block * new;
-    new = block + ABLOCK_SIZE + size;
+    new = (struct alloc_block *) ((char *) block + ABLOCK_SIZE + size);
     malloc_verbose("New block at 0x%x\r\n", new);
     new->free = 1;
     new->size = block->size - size - ABLOCK_SIZE;
