@@ -22,7 +22,6 @@ void kernel_main(uint64_t r0, uint64_t r1, uint64_t atags) {
     (void) r1;
     (void) atags;
     kernel_init();
-    malloc_test();
     /* Start init process */
     exec_proc(1);
 }

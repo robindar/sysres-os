@@ -224,10 +224,10 @@ el1_sync_handler:
     mrs x10, TTBR0_EL1              //Backup TTBR0_EL1 (easier for restore)
     mov x0, #1
     msr SPSel, x0                   //Make sure we are with SP_EL1
-    stp x9, x10, [sp, #-16]!
-    ldr x10, = __mmu_tables_start ;  //Switch to kernel MMU to avoid breaking anything for the process
-    msr TTBR0_EL1, x10
+    ldr x11, = __mmu_tables_start   //Switch to kernel MMU to avoid breaking anything for the process
+    msr TTBR0_EL1, x11
     ISB
+    stp x9, x10, [sp, #-16]!        //Backup on Kernel Stack (ie SP_EL1, Kernel MMU)
     mov x0, 1
     mov x1, x8
     mrs x2, spsr_el1
