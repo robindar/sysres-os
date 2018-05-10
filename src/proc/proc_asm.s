@@ -5,6 +5,9 @@ restore_and_run:
     //x1: pc
     //x2: sp
     //x3: pstate
+    //x4: TTBR0_EL1
+    msr TTBR0_EL1, x4                 //Switch to proc MMU
+    ISB                               //Done here bc we mustn't touch EL1 stack after
     msr spsr_el1, x3
     msr  elr_el1, x1
     msr spsel, xzr                     //Switch to SP_EL0 stack pointer
@@ -13,7 +16,7 @@ restore_and_run:
     msr spsel, x2                      //Switch back to SP_EL1
     ldr x2, =0x3F200000                //Clean EL1 stack
     mov sp, x2
-    ldr x30,     [x0], #(-8)           //Post-incr
+    ldr x30,     [x0], #(-16)           //Post-incr
     ldp x28,x29, [x0], #(-16)
     ldp x26,x27, [x0], #(-16)
     ldp x24,x25, [x0], #(-16)
@@ -28,5 +31,5 @@ restore_and_run:
     ldp x6, x7,  [x0], #(-16)
     ldp x4, x5,  [x0], #(-16)
     ldp x2, x3,  [x0], #(-16)
-    ldp x0, x1,  [x0,  #(-16)]        //No write-back here (thx AS for the warning)
+    ldp x0, x1,  [x0]        //No write-back here (thx AS for the warning)
     eret

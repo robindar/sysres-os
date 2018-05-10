@@ -104,6 +104,7 @@ matrix new_product(matrix * a, matrix * b) {
     return c;
 }
 
+/* Code 101 : identity syscall, just resumes execution */
 void syscall_test_product(matrix * a, matrix * b, matrix * c) {
     if (a->col != b->row){
         uart_error("Impossible product");
@@ -111,35 +112,39 @@ void syscall_test_product(matrix * a, matrix * b, matrix * c) {
     }
     int n = a->col;
     int i, j, k;
-    asm volatile("svc #101");
+    SYSCALL(101);
     for(i = 0; i < c->row; i++){
-        asm volatile("svc #101");
+        SYSCALL(101);
         for(j = 0; j < c->col; j++){
-            asm volatile("svc #101");
+            SYSCALL(101);
             for(k = 0; k < n; k++){
-                asm volatile("svc #101");
-                *(c->m + i * c->col + j) += *(a->m + i*a->col + k) * *(b->m + k*b->col + j);
-                asm volatile("svc #101");
+                SYSCALL(101);
+                *(c->m + i * c->col + j) += *(a->m + i*a->col + k) *
+                    *(b->m + k*b->col + j);
+                SYSCALL(101);
             }
-            asm volatile("svc #101");
+            SYSCALL(101);
         }
-        asm volatile("svc #101");
+        SYSCALL(101);
     }
-    asm volatile("svc #101");
+    SYSCALL(101);
     return;
 }
 
 
 void matrix_main() {
     uart_debug("Entering matrix test\r\n");
-    #define SZ 100
+    #define SZ 2
 
     matrix a, b, c;
 
     a = new_identity(SZ ,SZ);
     b = new_matrix(SZ ,SZ);
+    c = new_matrix(SZ,SZ);
     fill_rand(&b);
-    c = new_product(&a, &b);
+    SYSCALL(101);
+    SYSCALL(101);
+    syscall_test_product(&a, &b, &c);
     assert(equal(b, c));
     uart_debug("Done matrix test\r\n");
 }

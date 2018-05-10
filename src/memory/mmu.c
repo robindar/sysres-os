@@ -240,6 +240,14 @@ uint64_t get_lvl2_table_address_from_TTBR0(uint64_t ttbr0_el1){
     return (ttbr0_el1 & MASK(47,1));
 }
 
+void set_lvl2_address(uint64_t lvl2_addr){
+    lvl2_table_address = lvl2_addr;
+}
+
+void set_lvl2_address_from_pid(int pid){
+    set_lvl2_address(get_lvl2_address_from_sys_state(pid));
+}
+
 
 void set_lvl2_address_from_TTBR0_EL1(){
     uint64_t lvl2_address;

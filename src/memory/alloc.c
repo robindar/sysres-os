@@ -57,7 +57,7 @@ void set_global_base(void * val){
     global_base = val;
 }
 
-#define MALLOC_VERBOSE
+
 #ifdef MALLOC_VERBOSE
 #define malloc_verbose(...) uart_verbose(__VA_ARGS__)
 #else

@@ -36,6 +36,51 @@ proc_descriptor new_proc_descriptor(int pid, int parent_pid, int priority, uint6
     return proc;
 }
 
+#ifdef PROC_VERBOSE
+#define proc_verbose(...) uart_verbose(__VA_ARGS__)
+#else
+#define proc_verbose(...) ((void) 0)
+#endif
+
+
+void print_proc_descriptor(const proc_descriptor * proc){
+    uart_verbose(
+        "PID : %d\r\n"
+        "Parent PID : %d\r\n"
+        "Priority : %d\r\n"
+        "State : %d\r\n"
+        "Initialized : %s\r\n"
+        "Errno : %d\r\n",
+        proc->pid, proc->parent_pid, proc->priority,
+        proc->state, proc->initialized ? "Yes" : "No",
+        proc->errno);
+    uart_verbose(
+        "pc : 0x%x\r\n"
+        "sp : 0x%x\r\n"
+        "pstate : 0x%x\r\n",
+        proc->saved_context.pc, proc->saved_context.sp,
+        proc->saved_context.pstate);
+    for(int i = 0; 4*i + 3 < N_REG; i++){
+        uart_verbose("X%d : 0x%x  X%d : 0x%x  X%d : 0x%x  X%d : 0x%x\r\n",
+                     4*i, proc->saved_context.registers[4*i],
+                     4*i + 1, proc->saved_context.registers[4*i+1],
+                     4*i + 2, proc->saved_context.registers[4*i+2],
+                     4*i + 3, proc->saved_context.registers[4*i+3]);
+    }
+    uart_verbose("X%d : 0x%x  X%d : 0x%x  X%d : 0x%x\r\n",
+                 28, proc->saved_context.registers[28],
+                 29, proc->saved_context.registers[29],
+                 30, proc->saved_context.registers[30]);
+    uart_verbose(
+        "TTBR0_EL1 : 0x%x\r\n"
+        "heap_begin : 0x%x\r\n"
+        "end_offset : 0x%x\r\n"
+        "global_base : 0x%x\r\n",
+        proc->mem_conf.ttbr0_el1, proc->mem_conf.heap_begin,
+        proc->mem_conf.end_offset,
+        (uint64_t)proc->mem_conf.global_base);
+}
+
 /* Init the process management system */
 void init_proc(){
     uart_info("Beginning proc initialization\r\n");
@@ -67,8 +112,7 @@ void init_proc(){
 
 
 /****  CONTEXT  ****/
-void save_errno(){
-    proc_descriptor * proc = &sys_state.procs[sys_state.curr_pid];
+void save_errno(proc_descriptor * proc){
     proc->errno = errno;
     return;
 }
@@ -77,8 +121,7 @@ void restore_errno(const proc_descriptor * proc){
     errno = proc->errno;
 }
 
-void save_alloc_conf(){
-    proc_descriptor * proc = &sys_state.procs[sys_state.curr_pid];
+void save_alloc_conf(proc_descriptor * proc){
     /* No need to touch mem_conf.ttbr0_el1 : it is cst for a given proc */
     proc->mem_conf.heap_begin = get_heap_begin();
     proc->mem_conf.end_offset = get_end_offset();
@@ -103,12 +146,16 @@ void save_context(uint64_t sp, uint64_t elr_el1, uint64_t pstate, uint64_t handl
     ctx->sp = sp;
     ctx->pc = elr_el1;
     ctx->pstate = pstate;
-    for(int i = 0; i < N_REG; i++){
-        ctx->registers[i] = AT(handler_sp + (N_REG + 1 - i) * sizeof(uint64_t));
+    for(int i = 0; i < N_REG/2; i++){
+        ctx->registers[2*i+1] = AT(handler_sp + (N_REG - 2*i  ) * sizeof(uint64_t));
+        ctx->registers[2*i]   = AT(handler_sp + (N_REG - 2*i-1) * sizeof(uint64_t));
     }
-    save_alloc_conf();
-    save_errno();
+    ctx->registers[30] = AT(handler_sp + sizeof(uint64_t));
+    save_alloc_conf(&sys_state.procs[sys_state.curr_pid]);
+    save_errno((&sys_state.procs[sys_state.curr_pid]));
     /* We are in kernel mode now */
+    /* set_lvl2_address_from_pid(0); */
+    /* Indeed, setting lvl2_addr should be done only in mmu.c */
     sys_state.last_pid = sys_state.curr_pid;
     sys_state.curr_pid = 0;
     return;
@@ -119,12 +166,15 @@ void save_context(uint64_t sp, uint64_t elr_el1, uint64_t pstate, uint64_t handl
 __attribute__((__noreturn__))
 void run_process(proc_descriptor * proc){
     uart_verbose("Preparing to run process with PID %d with code at address 0x%x\r\n", proc->pid, proc->saved_context.pc);
+    #ifdef PROC_VERBOSE
+    print_proc_descriptor(proc);
+    #endif
     assert(proc->pid > 0);      /* Should not be used on kernel */
     assert(proc->state == RUNNABLE);
     /* Must be in kernel mode */
     assert(sys_state.curr_pid == 0);
     /* Backup alloc info for kernel */
-    save_alloc_conf();
+    save_alloc_conf(&sys_state.procs[0]);
      if(!proc->initialized){
          /* Init proc MMU */
         set_up_memory_new_proc(proc);
@@ -146,7 +196,10 @@ int exec_proc(int pid){
 /* Should not return */
 __attribute__((__noreturn__))
 void c_el1_svc_aarch64_handler(uint64_t esr_el1){
-    set_lvl2_address_from_TTBR0_EL1();
+    uart_verbose("C EL1 SVC AARCH64 Handler called\r\n");
+    #ifdef PROC_VERBOSE
+    print_proc_descriptor(&sys_state.procs[sys_state.last_pid]);
+    #endif
     uint16_t syscall = (esr_el1 & MASK(15,0));
     //get back syscall code (ARM ARM 2453 for encoding)
     switch(syscall){
@@ -182,9 +235,3 @@ uint64_t get_lvl2_address_from_sys_state(int pid){
 int get_curr_pid(){
     return sys_state.curr_pid;
 }
-
-
-
-
-
-

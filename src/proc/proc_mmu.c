@@ -9,9 +9,8 @@
 
 /* Defined in proc_asm.s */
 __attribute__((__noreturn__))
-extern void restore_and_run(uint64_t reg_addr_end, uint64_t pc, uint64_t sp, uint64_t pstate);
+extern void restore_and_run(uint64_t reg_addr_end, uint64_t pc, uint64_t sp, uint64_t pstate, uint64_t ttbr0_el1);
 
-/* TODO : important finish adapting functions from mmu.c -> gloabl cst for lvl2 table and then commit */
 void set_up_memory_new_proc(proc_descriptor * proc){
     uint64_t lvl2_table_address = c_init_mmu(proc->pid);
     proc->mem_conf.ttbr0_el1 = (((uint64_t)proc->pid) << 48) | (lvl2_table_address & MASK(47,1));
@@ -30,20 +29,16 @@ void set_up_memory_new_proc(proc_descriptor * proc){
 /* Thanks to the ASID we don't need to clean the TLB (ARMv8-A Address Translation) */
 __attribute__((__noreturn__))
 void switch_to_proc(proc_descriptor * proc){
-    /* Ugly hack : we need to preserve proc even in case it is on the stack (-O0) */
-    asm volatile("mov x25, %1;"\
-                 "msr TTBR0_EL1, %2;"\
-                 "ISB;"\
-                 "mov %0, x25;"\
-                 :"=r"(proc) : "r"(proc), "r"(proc->mem_conf.ttbr0_el1) :"x25");
     /* As data is id mapped, we can set global var now */
     if(!proc->initialized) init_alloc();
     else restore_alloc_conf(proc);
     restore_errno(proc);
-    set_lvl2_address_from_TTBR0_EL1();
     proc->initialized = true;
-    restore_and_run((uint64_t) &(proc->saved_context.registers[N_REG - 1]),
-                    proc->saved_context.pc,
-                    proc->saved_context.sp,
-                    proc->saved_context.pstate);
+    restore_and_run(
+        (uint64_t) &(proc->saved_context.registers[N_REG - 1]),
+        proc->saved_context.pc,
+        proc->saved_context.sp,
+        proc->saved_context.pstate,
+        proc->mem_conf.ttbr0_el1
+        );
 }
