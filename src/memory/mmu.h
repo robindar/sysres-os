@@ -127,7 +127,7 @@ uint64_t get_lvl3_entry_phys_address(uint64_t virtual_addr);
 int bind_address(uint64_t virtual_addr, uint64_t physical_addr, block_attributes_sg1 ba);
 
 void populate_lvl2_table(uint64_t lvl3_address);
-uint64_t identity_paging();
+void identity_paging();
 
 uint64_t c_init_mmu();
 
@@ -145,6 +145,13 @@ void pmapdump();
 struct physical_memory_map_t {
     uint32_t * map; /* address of the actual map */
     uint32_t head, size;
+    uint64_t bind_counter_offset;
+    /* bind_counter[i] is the number of virtual pages that reference
+     *   physical page (bind_counter_offset + i)
+     * when it reaches 0, this page may be freed
+     * No physical page should be marked writable twice, but it might be RO
+     */
+    uint8_t  * bind_counter;
 };
 
 int get_new_page(uint64_t virtual_address, enum block_perm_config block_perm, enum block_cache_config cache_config);
@@ -153,7 +160,13 @@ void access_flag_fault_lvl3_handler(uint64_t fault_address, int level, bool lowe
 int free_virtual_page(uint64_t virtual_addr);
 
 uint64_t get_page_permission(uint64_t virtual_addr);
+
 /* Setting lvl2_table_address should be done only in mmu.c */
 /* void set_lvl2_address_from_TTBR0_EL1(); */
 /* void set_lvl2_address(uint64_t lvl2_addr); */
+
+void increment_bind_counter (uint64_t physical_addr);
+void decrement_bind_counter (uint64_t physical_addr);
+int get_bind_counter (uint64_t physical_addr);
+
 #endif

@@ -7,6 +7,7 @@
 static uint64_t lvl2_table_address;
 /* See doc/proc.md for where it is initialized */
 
+static volatile uint64_t id_paging_size;
 
 block_attributes_sg1 new_block_attributes_sg1(enum block_perm_config perm_config, enum block_cache_config cache_config) {
     block_attributes_sg1 bas1;
@@ -206,6 +207,38 @@ void init_new_lvl3_table(uint64_t lvl2_entry_phys_address){
     uart_verbose("New table initialization done\r\n");
 }
 
+uint64_t get_physical_memory_map_addr () {
+    uint64_t memmap_addr = 0;
+    asm volatile ("ldr %0, =__physical_memory_map" : "=r"(memmap_addr) : :);
+    uart_verbose("Physical memory map is at 0x%x\r\n", memmap_addr);
+    return memmap_addr;
+}
+
+static struct physical_memory_map_t physical_memory_map;
+
+uint8_t * get_bind_counter_address (uint64_t physical_addr) {
+    return physical_memory_map.bind_counter +
+      (physical_addr / GRANULE) - physical_memory_map.bind_counter_offset;
+}
+
+int get_bind_counter (uint64_t physical_addr) {
+    return (int) * get_bind_counter_address(physical_addr);
+}
+
+void set_bind_counter (uint64_t physical_addr, int value) {
+    * get_bind_counter_address(physical_addr) = value;
+}
+
+void increment_bind_counter (uint64_t physical_addr) {
+    uart_verbose("Incrementing bind counter at 0x%x for address 0x%x\r\n", get_bind_counter_address(physical_addr), physical_addr);
+    (* get_bind_counter_address(physical_addr)) ++;
+}
+
+void decrement_bind_counter (uint64_t physical_addr) {
+    uart_verbose("Decrementing bind counter at 0x%x for address 0x%x\r\n", get_bind_counter_address(physical_addr), physical_addr);
+    (* get_bind_counter_address(physical_addr)) --;
+}
+
 int bind_address(uint64_t virtual_addr, uint64_t physical_addr, block_attributes_sg1 ba) {
     if ((physical_addr & MASK(11,0)) != 0)
         return 4;
@@ -215,6 +248,8 @@ int bind_address(uint64_t virtual_addr, uint64_t physical_addr, block_attributes
     switch(error_code){
         case 0:
             init_block_and_page_entry_sg1(lvl3_entry_phys_address, physical_addr, ba);
+            if (physical_addr > id_paging_size)
+                increment_bind_counter(physical_addr);
             return 0;
         case 5:
             /* Invalid table : we init a new one */
@@ -286,7 +321,7 @@ void one_step_mapping(){
 }
 
 /*** IDENTITY PAGING ***/
-void check_identity_paging(uint64_t id_paging_size){
+void check_identity_paging() {
     uart_debug("Checking identity paging\r\n");
     uint64_t lvl3_entry_phys_addr;
     for (uint64_t physical_pnt = 0; physical_pnt < id_paging_size; physical_pnt += GRANULE) {
@@ -307,16 +342,14 @@ void check_identity_paging(uint64_t id_paging_size){
     uart_debug("Checked identity paging\r\n");
 }
 
-/* Returns identity paging size */
-uint64_t identity_paging() {
+void identity_paging() {
     uart_info("Binding identity\r\n");
     block_attributes_sg1 kernel_ba = new_block_attributes_sg1(KERNEL_PAGE | ACCESS_FLAG_SET, NORMAL_WT_NT);
     /* For debugging (so gdb can read code whatever the level) TODO : REMOVE ? */
     block_attributes_sg1 code_ba   = new_block_attributes_sg1(  CODE_PAGE | ACCESS_FLAG_SET, NORMAL_WT_NT);
     block_attributes_sg1 data_ba   = new_block_attributes_sg1(  DATA_PAGE | ACCESS_FLAG_SET, NORMAL_WT_NT);
-    uint64_t id_paging_size, data_start, bss_end;
+    uint64_t data_start, bss_end;
     /* Everything is GRANULE aligned */
-    asm volatile ("ldr %0, =__end" : "=r"(id_paging_size) : :);
     asm volatile ("ldr %0, =__data_start" : "=r"(data_start) : :);
     asm volatile ("ldr %0, =__bss_end" : "=r"(bss_end) : :);
     uart_verbose("Id paging size : 0x%x\r\n", id_paging_size);
@@ -324,18 +357,21 @@ uint64_t identity_paging() {
     uart_verbose("__bss_end : 0x%x\r\n", bss_end);
     int status;
     uint64_t physical_pnt;
+    uart_verbose("Binding kernel zone\r\n");
     /* Kernel zone : 0x0 - data_start (~0x6000) */
     for (physical_pnt = 0; physical_pnt < data_start; physical_pnt += GRANULE) {
         status = bind_address(physical_pnt, physical_pnt, code_ba);
         if (status)
             uart_verbose("Invalid status found at 0x%x : %d\r\n", physical_pnt, status);
     }
+    uart_verbose("Binding data zone\r\n");
     /* Data zone : data_start (~0x6000) - bss_end (~0xb000) */
     for (physical_pnt = data_start; physical_pnt < bss_end; physical_pnt += GRANULE) {
         status = bind_address(physical_pnt, physical_pnt, data_ba);
         if (status)
             uart_verbose("Invalid status found at 0x%x : %d\r\n", physical_pnt, status);
     }
+    uart_verbose("Binding memory tables zone\r\n");
     /* Tables zones : bss_end (~0xb000) - id_paging_size (~0x4300000) */
     /* See ARM ARM 2178 for the pages alignement constraints : for GRANULE = 4kB, 16 is needed */
     kernel_ba.ContinuousBit = 1;
@@ -366,24 +402,19 @@ uint64_t identity_paging() {
     bind_address(GPIO_BASE + 0x1000,GPIO_BASE + 0x1000, ba);
     bind_address(GPIO_BASE + 0x15000,GPIO_BASE + 0x15000, ba);
     uart_info("Identity paging success\r\n");
-    return id_paging_size;
 }
-
-uint64_t get_physical_memory_map_addr () {
-    uint64_t memmap_addr = 0;
-    asm volatile ("ldr %0, =__physical_memory_map" : "=r"(memmap_addr) : :);
-    uart_verbose("Physical memory map is at 0x%x\r\n", memmap_addr);
-    return memmap_addr;
-}
-
-static struct physical_memory_map_t physical_memory_map;
 
 #define SKIPPED_PAGES 3
-void init_physical_memory_map (uint64_t id_paging_size) {
+void init_physical_memory_map () {
     uint64_t memmap_addr = get_physical_memory_map_addr ();
     physical_memory_map.map = (uint32_t *) memmap_addr;
     physical_memory_map.head = 0;
     physical_memory_map.size = 0x100000; /* = sizeof(uint32_t) * 512 * 512 -> maybe overkill */
+    physical_memory_map.bind_counter_offset = id_paging_size / GRANULE;
+    physical_memory_map.bind_counter = (uint8_t *) physical_memory_map.map + physical_memory_map.size;
+    for (uint64_t i = id_paging_size / GRANULE; i < 512 * 512; i++) {
+        set_bind_counter(i * GRANULE, 0);
+    }
     uint32_t delta = 0; // Number of pages skipped for uart
     for (uint32_t i = 0; i < (RAM_SIZE - id_paging_size) / GRANULE - SKIPPED_PAGES; i++) {
 
@@ -435,21 +466,25 @@ void init_cache(){
 
 uint64_t c_init_mmu(uint64_t pid){
     assert(pid < 32);            /* Before removing this to increase he nb of procs, make sure you've taken care of that dear linker.ld */
+    uint64_t tmp;
+    asm volatile ("ldr %0, =__end" : "=r"(tmp) : :);
+    id_paging_size = tmp;
+    uart_verbose("Got id paging size : 0x%x at 0x%x\r\n", id_paging_size, &id_paging_size);
     uart_info("Beginning C MMU initialization for process of PID %d\r\n", pid);
     uint64_t mmu_tables_start;
     asm volatile("ldr %0, =__mmu_tables_start" : "=r"(mmu_tables_start) : :);
     lvl2_table_address = mmu_tables_start + pid * N_TABLE_ENTRIES * GRANULE;
     uart_verbose("Lvl2 table address : 0x%x\r\n", lvl2_table_address);
     populate_lvl2_table(lvl2_table_address + GRANULE);
-    uint64_t id_paging_size = identity_paging();
-    /* Maybe remove the next line later */
-    check_identity_paging(id_paging_size);
     if(pid == 0){
         /* One memory map to rule them all ie we only use the one set up by process 0*/
-        init_physical_memory_map(id_paging_size);
+        init_physical_memory_map();
         /* For PID > 0, MAIR_EL1 and TCR_EL1 still control addr translation so no need to init them*/
         init_cache();
     }
+    identity_paging();
+    /* Maybe remove the next line later */
+    check_identity_paging();
     /* Stack Initialization */
     /* TODO : add another page and distinguish between segfault/stack overflow/heap overflow + handle perm faults from EL0...*/
     int status = get_new_page(GPIO_BASE - GRANULE, DATA_PAGE | ACCESS_FLAG_SET, NORMAL_WT_NT) & MASK(2, 0);
@@ -487,6 +522,7 @@ int get_new_page(uint64_t virtual_address, enum block_perm_config block_perm, en
 void free_physical_page(uint64_t physical_addr) {
     assert(physical_memory_map.head > 0);
     assert(physical_addr % GRANULE == 0);
+    assert(get_bind_counter(physical_addr) == 0);
     physical_memory_map.map[ --physical_memory_map.head ] = physical_addr;
 }
 
@@ -499,6 +535,8 @@ int free_virtual_page(uint64_t virtual_addr) {
     uart_verbose(
             "Freeing page containing virtual address 0x%x at physical address 0x%x\r\n"
             ,virtual_addr, physical_address);
+    if (physical_address > id_paging_size)
+        decrement_bind_counter(physical_address);
     free_physical_page(physical_address);
     /* Clear TLB entry (note this clears only for the current ASID) (see ARMv8-A Address Translation p27)*/
     asm volatile("DSB ISHST");
