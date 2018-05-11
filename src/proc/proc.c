@@ -165,8 +165,8 @@ void save_context(uint64_t sp, uint64_t elr_el1, uint64_t pstate, uint64_t handl
 /* Assumes MMU, Stack... is already set up */
 __attribute__((__noreturn__))
 void run_process(proc_descriptor * proc){
-    uart_verbose("Preparing to run process with PID %d with code at address 0x%x\r\n", proc->pid, proc->saved_context.pc);
     #ifdef PROC_VERBOSE
+    uart_verbose("Preparing to run process with PID %d with code at address 0x%x\r\n", proc->pid, proc->saved_context.pc);
     print_proc_descriptor(proc);
     #endif
     assert(proc->pid > 0);      /* Should not be used on kernel */
@@ -196,8 +196,8 @@ int exec_proc(int pid){
 /* Should not return */
 __attribute__((__noreturn__))
 void c_el1_svc_aarch64_handler(uint64_t esr_el1){
-    uart_verbose("C EL1 SVC AARCH64 Handler called\r\n");
     #ifdef PROC_VERBOSE
+    uart_verbose("C EL1 SVC AARCH64 Handler called\r\n");
     print_proc_descriptor(&sys_state.procs[sys_state.last_pid]);
     #endif
     uint16_t syscall = (esr_el1 & MASK(15,0));
@@ -210,7 +210,7 @@ void c_el1_svc_aarch64_handler(uint64_t esr_el1){
         break;
     case 101:
         /* Test syscall : does nothing */
-        uart_verbose("Syscall code 101 : Test id\r\n");
+        proc_verbose("Syscall code 101 : Test id\r\n");
         run_process(&sys_state.procs[sys_state.last_pid]);
         break;
     default:
