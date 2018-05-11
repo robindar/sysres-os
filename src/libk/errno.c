@@ -1,2 +1,2 @@
 #include "errno.h"
-int errno;
+struct errno_struct err = {0};

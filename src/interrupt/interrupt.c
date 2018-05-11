@@ -71,6 +71,9 @@ void instruction_abort_handler(uint64_t el, uint64_t nb, uint64_t spsr_el, uint6
         case 0b1011:            /* Access flag fault level 3 */
             access_flag_fault_lvl3_handler(far_el, 3, lower_el, pid);
             break;
+        case 0b1111:
+            permission_fault_handler(far_el, 3,lower_el, pid, false);
+            break;
         default:
             display_error("Instruction Abort Error", el, nb, spsr_el, elr_el, esr_el, far_el);
         }
@@ -91,6 +94,9 @@ void data_abort_handler(uint64_t el, uint64_t nb, uint64_t spsr_el, uint64_t elr
             break;
         case 0b1011:            /* Access flag fault level 3 */
             access_flag_fault_lvl3_handler(far_el, 3, lower_el, pid);
+            break;
+        case 0b1111:
+            permission_fault_handler(far_el, 3,lower_el, pid, true);
             break;
         default:
             display_error("Data Abort Error", el, nb, spsr_el, elr_el, esr_el, far_el);

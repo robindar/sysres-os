@@ -248,7 +248,7 @@ int bind_address(uint64_t virtual_addr, uint64_t physical_addr, block_attributes
     switch(error_code){
         case 0:
             init_block_and_page_entry_sg1(lvl3_entry_phys_address, physical_addr, ba);
-            if (physical_addr > id_paging_size)
+            if (physical_addr >= id_paging_size)
                 increment_bind_counter(physical_addr);
             return 0;
         case 5:
@@ -264,7 +264,10 @@ int bind_address(uint64_t virtual_addr, uint64_t physical_addr, block_attributes
 
 /* Warning ignores alignement erros encountered by get_lvl3_entry_phys_address */
 uint64_t get_physical_address(uint64_t virtual_addr){
-    return get_address_sg1(get_lvl3_entry_phys_address(virtual_addr)) + (virtual_addr & MASK(11, 0));
+    uint64_t lvl3_entry_phys_addr = get_lvl3_entry_phys_address(virtual_addr);
+    int status = lvl3_entry_phys_addr & MASK(2,0);
+    assert(status == 0);
+    return get_address_sg1(lvl3_entry_phys_addr) + (virtual_addr & MASK(11, 0));
 }
 
 uint64_t get_ASID_from_TTBR0(uint64_t ttbr0_el1){
@@ -342,6 +345,15 @@ void check_identity_paging() {
     uart_debug("Checked identity paging\r\n");
 }
 
+void map_GPIO(){
+    block_attributes_sg1 ba = new_block_attributes_sg1(IO_PAGE | ACCESS_FLAG_SET, DEVICE);
+    /* Warning Access falg is set to 1 : you can set it to zero if you want but make sure the Access flag fault handling uses no uart o/w you'll end up in an infinite loop */
+    bind_address(GPIO_BASE,GPIO_BASE, ba);
+    bind_address(GPIO_BASE + 0x1000,GPIO_BASE + 0x1000, ba);
+    bind_address(GPIO_BASE + 0x15000,GPIO_BASE + 0x15000, ba);
+    uart_info("Identity paging success\r\n");
+}
+
 void identity_paging() {
     uart_info("Binding identity\r\n");
     block_attributes_sg1 kernel_ba = new_block_attributes_sg1(KERNEL_PAGE | ACCESS_FLAG_SET, NORMAL_WT_NT);
@@ -395,13 +407,6 @@ void identity_paging() {
     if (current_table_index)
         for ( uint64_t i = 0; i < 512 - current_table_index; i++)
             set_invalid_page(id_paging_size + i * GRANULE);
-
-    block_attributes_sg1 ba = new_block_attributes_sg1(IO_PAGE | ACCESS_FLAG_SET, DEVICE);
-    /* Warning Access falg is set to 1 : you can set it to zero if you want but make sure the Access flag fault handling uses no uart o/w you'll end up in an infinite loop */
-    bind_address(GPIO_BASE,GPIO_BASE, ba);
-    bind_address(GPIO_BASE + 0x1000,GPIO_BASE + 0x1000, ba);
-    bind_address(GPIO_BASE + 0x15000,GPIO_BASE + 0x15000, ba);
-    uart_info("Identity paging success\r\n");
 }
 
 #define SKIPPED_PAGES 3
@@ -464,6 +469,47 @@ void init_cache(){
     uart_info("Cache Initialization Done\r\n");
 }
 
+void process_init_copy_and_write(int pid){
+    uint64_t parent_lvl2_table_addr = get_lvl2_address_from_sys_state(get_parent_pid(pid));
+    /* Copy kernel lvl2 entries*/
+    uint64_t id_paging_size;
+    asm volatile ("ldr %0, =__end" : "=r"(id_paging_size) : :);
+    /* id paging size is  GRANULE * N_TABLE_ENTRIES aligned*/
+    int n_kernel_tables = id_paging_size / (GRANULE * N_TABLE_ENTRIES);
+    /* No table allocated except for periph after this */
+    int n_availabe_tables = GPIO_BASE / (GRANULE * N_TABLE_ENTRIES);
+    for(int i = 0; i < n_kernel_tables; i++)
+        AT(lvl2_table_address + i * sizeof(uint64_t)) =
+            AT(parent_lvl2_table_addr + i * sizeof(uint64_t));
+    uint64_t parent_lvl2_entry_addr, parent_lvl3_entry_addr;
+    uint64_t lvl2_entry_addr, lvl3_entry_addr;
+    block_attributes_sg1 forked_page =
+        new_block_attributes_sg1(FORKED_PAGE | ACCESS_FLAG_SET, NORMAL_WT_NT);
+    for(int i = n_kernel_tables; i < n_availabe_tables; i++){
+        /* Interating through lvl2 entries */
+        parent_lvl2_entry_addr = parent_lvl2_table_addr + i * sizeof(uint64_t);
+        if(is_table_entry(AT(parent_lvl2_entry_addr))){
+            /* Valid table entry ie used */
+            for(int j = 0; j < N_TABLE_ENTRIES; j++){
+                parent_lvl3_entry_addr =
+                    get_address_sg1(parent_lvl2_entry_addr) + j * sizeof(uint64_t);
+                if(is_block_entry(AT(parent_lvl3_entry_addr), 3)){
+                    /* Valid block entry, ie used */
+                    lvl2_entry_addr = lvl2_table_address + i * sizeof(uint64_t);
+                    lvl3_entry_addr =
+                        get_address_sg1(lvl2_entry_addr) + j * sizeof(uint64_t);
+                    /* Switch parent entry to R-X R-X */
+                    set_block_and_page_attributes_sg1(
+                        parent_lvl2_entry_addr, forked_page);
+                    AT(lvl3_entry_addr) = AT(parent_lvl3_entry_addr);
+                    increment_bind_counter(get_address_sg1(lvl3_entry_addr));
+                }
+            }
+        }
+    }
+}
+
+
 uint64_t c_init_mmu(uint64_t pid){
     assert(pid < 32);            /* Before removing this to increase he nb of procs, make sure you've taken care of that dear linker.ld */
     uint64_t tmp;
@@ -476,17 +522,21 @@ uint64_t c_init_mmu(uint64_t pid){
     lvl2_table_address = mmu_tables_start + pid * N_TABLE_ENTRIES * GRANULE;
     uart_verbose("Lvl2 table address : 0x%x\r\n", lvl2_table_address);
     populate_lvl2_table(lvl2_table_address + GRANULE);
-    if(pid == 0){
-        /* One memory map to rule them all ie we only use the one set up by process 0*/
-        init_physical_memory_map();
-        /* For PID > 0, MAIR_EL1 and TCR_EL1 still control addr translation so no need to init them*/
-        init_cache();
+    if(pid == 0 || pid == 1){
+        if(pid == 0){
+            /* One memory map to rule them all ie we only use the one set up by process 0*/
+            init_physical_memory_map();
+            /* For PID > 0, MAIR_EL1 and TCR_EL1 still control addr translation so no need to init them*/
+            init_cache();
+        }
+        identity_paging();
+        /* Maybe remove the next line later */
+        check_identity_paging();
     }
-    identity_paging();
-    /* Maybe remove the next line later */
-    check_identity_paging();
+    else process_init_copy_and_write(pid);
+    /* Map GPIO */
+    map_GPIO();
     /* Stack Initialization */
-    /* TODO : add another page and distinguish between segfault/stack overflow/heap overflow + handle perm faults from EL0...*/
     int status = get_new_page(GPIO_BASE - GRANULE, DATA_PAGE | ACCESS_FLAG_SET, NORMAL_WT_NT) & MASK(2, 0);
     if(status)
         uart_error("Error during stack initialization with status : %d\r\n", status);
@@ -535,7 +585,7 @@ int free_virtual_page(uint64_t virtual_addr) {
     uart_verbose(
             "Freeing page containing virtual address 0x%x at physical address 0x%x\r\n"
             ,virtual_addr, physical_address);
-    if (physical_address > id_paging_size)
+    if (physical_address >= id_paging_size)
         decrement_bind_counter(physical_address);
     free_physical_page(physical_address);
     /* Clear TLB entry (note this clears only for the current ASID) (see ARMv8-A Address Translation p27)*/
@@ -578,10 +628,13 @@ void translation_fault_handler(uint64_t fault_address, int level, bool lower_el,
         : "x0", "x1" );
     /* The stack can't "claim" more pages : this is only used for heap memory and to detect stack overflow */
     if (stack_pointer < STACK_END &&
-        fault_address > stack_pointer && fault_address < STACK_END)
-        assert(0); // TODO: STACK OVERFLOW
+        fault_address > stack_pointer && fault_address < STACK_END){
+        err.no = STACK_OVERFLOW;
+        uart_error("STACK_OVERFLOW :\r\nFAR : 0x%x\r\nSP : 0x%x\r\nSTACK_END : 0x%x\r\n", fault_address, stack_pointer, STACK_END);
+    }
     if (!(fault_address >= get_heap_begin() &&
         fault_address < get_heap_begin() + get_end_offset())) {
+        err.no = SEG_FAULT;
         uart_verbose("SEGFAULT :\r\nFAR : 0x%x\r\nheap_begin : 0x%x\r\nend_offset : 0x%x\r\n", fault_address, get_heap_begin(), get_end_offset());
         assert(0); // TODO: SEGFAULT - kill process
     }
@@ -600,6 +653,43 @@ void access_flag_fault_lvl3_handler(uint64_t fault_address, int level, bool lowe
     uart_verbose("Access flag fault handler called\r\n");
     lvl2_table_address = get_lvl2_address_from_sys_state(pid);
     set_page_access_flag(fault_address);    return;
+}
+
+/* The last bool indicates whether we are coming from a data abort (true) or an instruction abort (false) */
+void permission_fault_handler(uint64_t fault_address, int level,bool lower_lvl,
+                              int pid __attribute__((unused)),
+                              bool data_abort __attribute__((unused))){
+    uart_verbose("Permission fault handler called\r\n");
+    assert(level == 3);
+    assert(lower_lvl);
+    if(fault_address < id_paging_size || fault_address > GPIO_BASE){
+        err.no = SEG_FAULT;
+        uart_error("SEGFAULT :\r\nFAR : 0x%x\r\n", fault_address);
+        assert(0); // TODO: SEGFAULT - kill process
+    }
+    /* A permission fault in this zone is necessqrily a write on a shared page */
+    uint64_t phys_address = get_physical_address(fault_address);
+    int cnt = get_bind_counter(phys_address);
+    assert(cnt > 0);
+    if(cnt > 1){
+        /* the page is shared */
+        uart_verbose("Shared page : allocating a new one\r\n");
+        decrement_bind_counter(phys_address);
+        get_new_page(fault_address,
+                     (lower_lvl ? USER_PAGE : KERNEL_PAGE) | ACCESS_FLAG_SET,
+                     NORMAL_WT_NT);
+    }
+    else{/* we are alone : we update permissions*/
+        uart_verbose("Alone on shared page : changing permissions\r\n");
+        block_attributes_sg1 ba = new_block_attributes_sg1(
+            (lower_lvl ? USER_PAGE : KERNEL_PAGE) | ACCESS_FLAG_SET,
+            NORMAL_WT_NT);
+        uint64_t lvl3_entry_addr = get_lvl3_entry_phys_address(fault_address);
+        int status = lvl3_entry_addr & MASK(5,0);
+        assert(status == 0);
+        set_block_and_page_attributes_sg1(lvl3_entry_addr, ba);
+    }
+    return;
 }
 
 uint64_t get_page_permission(uint64_t virtual_addr) {

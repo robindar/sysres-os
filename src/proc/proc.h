@@ -56,7 +56,7 @@ typedef struct{
     bool initialized;
     context saved_context;
     mem_conf mem_conf;
-    int errno;
+    struct errno_struct err;
     /* TODO : channels */
 } proc_descriptor;
 
@@ -73,5 +73,6 @@ void restore_errno(const proc_descriptor * proc);
 void restore_alloc_conf(const proc_descriptor * proc);
 uint64_t get_lvl2_address_from_sys_state(int pid);
 int get_curr_pid();
+int get_parent_pid(int pid);
 
 #endif

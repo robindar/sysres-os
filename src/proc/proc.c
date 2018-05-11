@@ -31,6 +31,8 @@ proc_descriptor new_proc_descriptor(int pid, int parent_pid, int priority, uint6
     proc.saved_context.pstate = new_el0_pstate();
     proc.saved_context.sp     = STACK_BEGIN;
     proc.saved_context.pc     = pc;
+    proc.err.no               = OK;
+    proc.err.descr            = 0;
     /* We kindly initialize the registers to zero */
     for(int i = 0; i < N_REG; i++) proc.saved_context.registers[i] = 0;
     return proc;
@@ -50,10 +52,11 @@ void print_proc_descriptor(const proc_descriptor * proc){
         "Priority : %d\r\n"
         "State : %d\r\n"
         "Initialized : %s\r\n"
-        "Errno : %d\r\n",
+        "Err.no : %d\r\n",
+        "Err.descr : %d\r\n",
         proc->pid, proc->parent_pid, proc->priority,
         proc->state, proc->initialized ? "Yes" : "No",
-        proc->errno);
+        proc->err.no, proc->err.descr);
     uart_verbose(
         "pc : 0x%x\r\n"
         "sp : 0x%x\r\n"
@@ -103,7 +106,7 @@ void init_proc(){
     /* -> Workaround :*/
     uint64_t p;
     asm volatile("ldr %0, =proc0_main" : "=r"(p));
-    sys_state.procs[1] = new_proc_descriptor(1, 1, 0, p);
+    sys_state.procs[1] = new_proc_descriptor(1, 0, 0, p);
     assert(sys_state.procs[1].pid == 1);
     uart_info("Proc initialization done\r\n");
     return;
@@ -113,12 +116,13 @@ void init_proc(){
 
 /****  CONTEXT  ****/
 void save_errno(proc_descriptor * proc){
-    proc->errno = errno;
+    proc->err = err;
     return;
 }
 
 void restore_errno(const proc_descriptor * proc){
-    errno = proc->errno;
+    err = proc->err;
+    return;
 }
 
 void save_alloc_conf(proc_descriptor * proc){
@@ -203,9 +207,14 @@ void c_el1_svc_aarch64_handler(uint64_t esr_el1){
     uint16_t syscall = (esr_el1 & MASK(15,0));
     //get back syscall code (ARM ARM 2453 for encoding)
     switch(syscall){
+    case 0:
+        /* Fork */
+        uart_verbose("Syscall code 0 : Fork\r\n");
+        halt();
+        break;
     case 100:
         /* Halt syscall (halt cannot be executed at EL0) */
-        uart_verbose("Syscall code 100 : Halt\r\n");
+        proc_verbose("Syscall code 100 : Halt\r\n");
         halt();
         break;
     case 101:
@@ -234,4 +243,8 @@ uint64_t get_lvl2_address_from_sys_state(int pid){
 
 int get_curr_pid(){
     return sys_state.curr_pid;
+}
+
+int get_parent_pid(int pid){
+    return sys_state.procs[pid].parent_pid;
 }

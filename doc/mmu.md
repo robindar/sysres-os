@@ -98,3 +98,6 @@ Warning dangerous :
                 - BSS end             : 0xb000
                 - Id_paging_size      : 0x4300000
           -> Thus we don't have 16 entries for kernel/data but it is feasible for tables
+
+# Kernel tables #
+For simplicity, we allocate for the kernel the whole of the first lvl3_table, ie 512*4ko (more exaclty 511*4ko)

@@ -27,6 +27,7 @@ enum block_perm_config {
     KERNEL_PAGE     = 0b00000, /* EL0 --X, ELn RWX : UXN(0) PXN(0) AP(00) */
     USER_PAGE       = 0b00001, /* EL0 RWX, ELn RW- : UXN(0) PXN(0) AP(01) */
     CODE_PAGE       = 0b00011, /* EL0 R-X, ELn R-X : UXN(0) PXN(0) AP(11) */ /* for debugging purpose */
+    FORKED_PAGE     = 0b00011, /* EL0 R-X, ELn R-X : UXN(0) PXN(0) AP(11) */
     IO_PAGE         = 0b01001, /* EL0 RW-, ELn RW- : UXN(1) PXN(0) AP(01) (note : this implies PXN = 1)*/
     DATA_PAGE       = 0b01001  /* EL0 RW-, ELn RW- : UXN(1) PXN(0) AP(01) (same)*/
 };
@@ -157,6 +158,7 @@ struct physical_memory_map_t {
 int get_new_page(uint64_t virtual_address, enum block_perm_config block_perm, enum block_cache_config cache_config);
 void translation_fault_handler(uint64_t fault_address, int level, bool lower_el, int pid);
 void access_flag_fault_lvl3_handler(uint64_t fault_address, int level, bool lower_lvl, int pid);
+void permission_fault_handler(uint64_t fault_address, int level, bool lower_lvl, int pid, bool data_abort);
 int free_virtual_page(uint64_t virtual_addr);
 
 uint64_t get_page_permission(uint64_t virtual_addr);
