@@ -78,7 +78,7 @@ weploy: clean bin/$(FILENAME).img
 	sudo umount /media/waissfowl/sd
 
 connect:
-	sudo screen /dev/ttyUSB0 115200
+	sudo screen -h 1000000 /dev/ttyUSB0 115200
 clean:
 	rm -rf obj/*
 clearlogs:
