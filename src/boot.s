@@ -22,6 +22,17 @@ _start:
     // Setup the stack.
     mov sp, #0x8000
 
+    //Turn off cpu1,2,3
+    //Get cpu id in r3
+    //mrc p15,0,r3,c0,c0,5
+    mrs X3, MPIDR_EL1
+    //Mask
+    and X3, X3, #0xFF
+    //Compare
+    cmp X3, #0
+    //Jump if non-zero
+    bne halt
+
     // Clear out bss.
     ldr X4, =__bss_start
     ldr X9, =__bss_end
@@ -40,17 +51,6 @@ _start:
 2:
     cmp X4, X9
     blo 1b
-
-    //Turn off cpu1,2,3
-    //Get cpu id in r3
-    //mrc p15,0,r3,c0,c0,5
-    mrs X3, MPIDR_EL1
-    //Mask
-    and X3, X3, #0xFF
-    //Compare
-    cmp X3, #0
-    //Jump if non-zero
-    bne halt
 
     //Tell the system where the Interrupt Tables are
     ldr X3, =Vector_table_el1

@@ -1,3 +1,7 @@
+# BSS Shit #
+
+Initialize bss segment ONE FUCKING TIME, not one per core
+
 # MMU Conventions #
 
 No blocks on level 2, only tables allowed
