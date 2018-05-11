@@ -134,13 +134,13 @@ void syscall_test_product(matrix * a, matrix * b, matrix * c) {
 
 void matrix_main() {
     uart_debug("Entering matrix test\r\n");
-    #define SZ 2
+    #define SZ 5
 
     matrix a, b, c;
 
     a = new_identity(SZ ,SZ);
     b = new_matrix(SZ ,SZ);
-    c = new_matrix(SZ,SZ);
+    c = new_zero(SZ,SZ);
     fill_rand(&b);
     SYSCALL(101);
     SYSCALL(101);
