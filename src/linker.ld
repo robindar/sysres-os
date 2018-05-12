@@ -22,6 +22,9 @@ SECTIONS
     .data ALIGN(0x1000) : AT(ADDR(.data) - 0x00000000)
     {
         *(.data)
+        __filesystem_start = .;
+        *(.filesystem*)
+        __filesystem_end = .;
 
     }
     __bss_start = .;
