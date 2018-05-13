@@ -9,7 +9,7 @@
 
 /* Defined in proc_asm.s */
 __attribute__((__noreturn__))
-extern void restore_and_run(uint64_t reg_addr_end, uint64_t pc, uint64_t sp, uint64_t pstate, uint64_t ttbr0_el1);
+extern void restore_and_run(uint64_t reg_addr_end, uint64_t pc, uint64_t sp, uint64_t pstate, uint64_t ttbr0_el1, uint64_t writeback_addr);
 
 void set_up_memory_new_proc(proc_descriptor * proc){
     uint64_t lvl2_table_address = c_init_mmu(proc->pid);
@@ -19,7 +19,6 @@ void set_up_memory_new_proc(proc_descriptor * proc){
         proc->pid,
         get_ASID_from_TTBR0(proc->mem_conf.ttbr0_el1),
         get_lvl2_table_address_from_TTBR0(proc->mem_conf.ttbr0_el1 & MASK(47, 1)));
-    /* TODO : malloc for user and init_alloc */
     return;
 }
 
@@ -30,15 +29,16 @@ void set_up_memory_new_proc(proc_descriptor * proc){
 __attribute__((__noreturn__))
 void switch_to_proc(proc_descriptor * proc){
     /* As data is id mapped, we can set global var now */
-    if(!proc->initialized) init_alloc();
-    else restore_alloc_conf(proc);
+    restore_alloc_conf(proc);
     restore_errno(proc);
     proc->initialized = true;
+    /* We are using x0-x7 to pass parameters */
     restore_and_run(
         (uint64_t) &(proc->saved_context.registers[N_REG - 1]),
         proc->saved_context.pc,
         proc->saved_context.sp,
         proc->saved_context.pstate,
-        proc->mem_conf.ttbr0_el1
+        proc->mem_conf.ttbr0_el1,
+        (uint64_t) proc->write_back.x
         );
 }

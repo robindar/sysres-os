@@ -2,7 +2,7 @@
 #define ALLOC_H
 #include <stddef.h>
 #include <stdint.h>
-#include <unistd.h>
+//#include <unistd.h>
 #include "mmu.h"
 #include "../libk/string.h"
 #include "../libk/uart.h"

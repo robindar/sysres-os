@@ -134,7 +134,7 @@ void syscall_test_product(matrix * a, matrix * b, matrix * c) {
 
 void matrix_main() {
     uart_debug("Entering matrix test\r\n");
-    #define SZ 5
+    #define SZ 2
 
     matrix a, b, c;
 

@@ -8,8 +8,9 @@
 #include "../usr/init.h"
 #include "../libk/errno.h"
 
+#define PROC_VERBOSE
+
 /**** INIT *****/
-/* Warning : do not remove the "static" here o/w it leads to strange behavior */
 static system_state sys_state;
 
 uint64_t new_el0_pstate(){
@@ -20,7 +21,7 @@ uint64_t new_el0_pstate(){
     return pstate;
 }
 
-proc_descriptor new_proc_descriptor(int pid, int parent_pid, int priority, uint64_t pc){
+proc_descriptor new_proc_descriptor(int pid, int parent_pid, int priority, void (*p)()){
     proc_descriptor proc;
     proc.pid                  = pid;
     proc.parent_pid           = parent_pid;
@@ -30,12 +31,35 @@ proc_descriptor new_proc_descriptor(int pid, int parent_pid, int priority, uint6
     proc.initialized          = false;
     proc.saved_context.pstate = new_el0_pstate();
     proc.saved_context.sp     = STACK_BEGIN;
-    proc.saved_context.pc     = pc;
+    proc.saved_context.pc     = (uint64_t) p;
     proc.err.no               = OK;
-    proc.err.descr            = 0;
+    proc.err.data             = 0;
+    proc.sibling              = NULL;
+    proc.child                = NULL;
+    proc.write_back.x[0]      = 0;
     /* We kindly initialize the registers to zero */
     for(int i = 0; i < N_REG; i++) proc.saved_context.registers[i] = 0;
     return proc;
+}
+
+void make_child_proc_descriptor(proc_descriptor * child, proc_descriptor * parent, int pid, int priority){
+    child->pid                  = pid;
+    child->parent_pid           = parent->pid;
+    child->priority             = priority;
+    child->state                = RUNNABLE;
+    child->sched_policy         = DEFAULT;
+    child->initialized          = false;
+    child->saved_context.pstate = parent->saved_context.pstate;
+    child->saved_context.sp     = parent->saved_context.sp;
+    child->saved_context.pc     = parent->saved_context.pc;
+    child->err                  = parent->err;
+    child->sibling              = parent->child;
+    child->child                = NULL;
+    child->write_back.x[0]      = 0;
+    child->saved_context.registers[0] = 0;
+    for(int i = 1; i < N_REG; i++)
+        child->saved_context.registers[i] = parent->saved_context.registers[i];
+    return;
 }
 
 #ifdef PROC_VERBOSE
@@ -46,6 +70,7 @@ proc_descriptor new_proc_descriptor(int pid, int parent_pid, int priority, uint6
 
 
 void print_proc_descriptor(const proc_descriptor * proc){
+    #ifdef PROC_VERY_VERBOSE
     uart_verbose(
         "PID : %d\r\n"
         "Parent PID : %d\r\n"
@@ -56,7 +81,7 @@ void print_proc_descriptor(const proc_descriptor * proc){
         "Err.descr : %d\r\n",
         proc->pid, proc->parent_pid, proc->priority,
         proc->state, proc->initialized ? "Yes" : "No",
-        proc->err.no, proc->err.descr);
+        proc->err.no, proc->err.data);
     uart_verbose(
         "pc : 0x%x\r\n"
         "sp : 0x%x\r\n"
@@ -82,6 +107,9 @@ void print_proc_descriptor(const proc_descriptor * proc){
         proc->mem_conf.ttbr0_el1, proc->mem_conf.heap_begin,
         proc->mem_conf.end_offset,
         (uint64_t)proc->mem_conf.global_base);
+    #else
+    (void) proc;
+    #endif
 }
 
 /* Init the process management system */
@@ -99,15 +127,14 @@ void init_proc(){
     asm volatile("mrs %0, TTBR0_EL1" : "=r"(ttbr0_el1));
     sys_state.procs[0].mem_conf.ttbr0_el1 = ttbr0_el1;
     /* Create init process (PID 1) */
-    /* Don't understand what the hell was happening with this : p was set to zero while gdb says &proc0_main != 0 */
-    /* void (*p)() = 42; */
-    /* p = proc0_main; */
-    /* uart_debug("p = %d", (int)p); */
-    /* -> Workaround :*/
-    uint64_t p;
-    asm volatile("ldr %0, =proc0_main" : "=r"(p));
-    sys_state.procs[1] = new_proc_descriptor(1, 0, 0, p);
-    assert(sys_state.procs[1].pid == 1);
+    sys_state.procs[1] = new_proc_descriptor(1, 0, 0, main_init);
+    /* Initialize init proc */
+    set_up_memory_new_proc(&sys_state.procs[1]);
+    save_alloc_conf(&sys_state.procs[0]);
+    init_alloc();
+    save_alloc_conf(&sys_state.procs[1]);
+    restore_alloc_conf(&sys_state.procs[0]);
+    sys_state.procs[1].initialized = true;
     uart_info("Proc initialization done\r\n");
     return;
 }
@@ -173,16 +200,15 @@ void run_process(proc_descriptor * proc){
     uart_verbose("Preparing to run process with PID %d with code at address 0x%x\r\n", proc->pid, proc->saved_context.pc);
     print_proc_descriptor(proc);
     #endif
-    assert(proc->pid > 0);      /* Should not be used on kernel */
+    /* Should not be used on kernel */
+    assert(proc->pid > 0);
     assert(proc->state == RUNNABLE);
     /* Must be in kernel mode */
     assert(sys_state.curr_pid == 0);
+    /* Initialization is no more done here */
+    assert(proc->initialized);
     /* Backup alloc info for kernel */
     save_alloc_conf(&sys_state.procs[0]);
-     if(!proc->initialized){
-         /* Init proc MMU */
-        set_up_memory_new_proc(proc);
-    }
     sys_state.curr_pid = proc -> pid;
     switch_to_proc(proc);
 }
@@ -195,13 +221,109 @@ int exec_proc(int pid){
 }
 
 
+/**** PROCESS UTILITY****/
+/* Returns -1 if no slot available */
+int find_free_proc(){
+    for(int i = 2; i < MAX_PROC; i++)
+        if(sys_state.procs[i].state == FREE) return i;
+    return -1;
+}
+
+
 
 /**** SYSCALLS ****/
+void syscall_fork(){
+    proc_descriptor * parent = &sys_state.procs[sys_state.last_pid];
+    int child_pid = find_free_proc();
+    if(child_pid == -1){
+        /* No available slot */
+        parent->err.no = MAX_PROC_REACHED;
+        parent->saved_context.registers[0] = -1;
+        return;
+    }
+    int priority = parent->saved_context.registers[0];
+    if(priority > parent->priority){
+        parent->err.no = TOO_HIGH_CHILD_PRIORITY;
+        parent->saved_context.registers[0] = -1;
+        return;
+    }
+    parent->saved_context.registers[0] = child_pid;
+    proc_descriptor * child = &sys_state.procs[child_pid];
+    make_child_proc_descriptor(child, parent, child_pid, priority);
+    parent->child = child;
+    /* Initializing MMU with copy and write */
+    set_up_memory_new_proc(child);
+    child->initialized = true;
+    proc_verbose("Forked process %d into child %d of priority %d\r\n",
+                 parent->pid, child->pid, child->priority);
+    return;
+}
+
+void handle_zombie_child(proc_descriptor * parent, proc_descriptor * child){
+    proc_verbose("Handling zombie child:\r\nParent : %d\r\nChild : %d\r\n",
+        parent->pid, child->pid);
+    uint64_t ret_status_addr = parent->saved_context.registers[0];
+    parent->saved_context.registers[0] = child->pid;
+    #ifdef PROC_VERBOSE
+    print_err(child->err);
+    #endif
+    if(ret_status_addr != 0){
+        parent->write_back.x[0] = ret_status_addr;
+        parent->write_back.x[1] = child->err.no;
+        parent->write_back.x[2] = child->err.data;
+    }
+    child->state = FREE;
+    parent->state = RUNNABLE;
+    return;
+}
+
+void syscall_wait(){
+    proc_descriptor * parent = &sys_state.procs[sys_state.last_pid];
+    proc_verbose("Syscall wait for process %d\r\n", parent->pid);
+    if(parent->child == NULL){
+        /* No child */
+        proc_verbose("No child\r\n");
+        parent->err.no = NO_CHILD;
+        parent->saved_context.registers[0] = -1;
+        return;
+    }
+    proc_descriptor * child = parent->child;
+    while(child->state != ZOMBIE && child->sibling != NULL)
+        child = child->sibling;
+    if(child->state == ZOMBIE)
+        handle_zombie_child(parent, child);
+    else
+        /* No zombie child */
+        parent->state = WAITING;
+    return;
+}
+
+void syscall_exit(){
+    proc_descriptor * proc = &sys_state.procs[sys_state.last_pid];
+    proc_verbose("Syscall exit for process %d\r\n", proc->pid);
+    proc->err.no   = proc->saved_context.registers[0];
+    proc->err.data = proc->saved_context.registers[1];
+    proc_descriptor * child = proc->child;
+    while(child != NULL){
+        child->parent_pid = 1;
+        child = child->sibling;
+    }
+    proc_descriptor * parent = &sys_state.procs[proc->parent_pid];
+    if(parent->state == WAITING)
+        handle_zombie_child(parent, proc);
+    else
+        parent->state = ZOMBIE;
+    return;
+}
+
+
+
+
 /* Should not return */
 __attribute__((__noreturn__))
 void c_el1_svc_aarch64_handler(uint64_t esr_el1){
     #ifdef PROC_VERBOSE
-    uart_verbose("C EL1 SVC AARCH64 Handler called\r\n");
+    proc_verbose("C EL1 SVC AARCH64 Handler called\r\n");
     print_proc_descriptor(&sys_state.procs[sys_state.last_pid]);
     #endif
     uint16_t syscall = (esr_el1 & MASK(15,0));
@@ -209,8 +331,22 @@ void c_el1_svc_aarch64_handler(uint64_t esr_el1){
     switch(syscall){
     case 0:
         /* Fork */
-        uart_verbose("Syscall code 0 : Fork\r\n");
-        halt();
+        proc_verbose("Syscall code 0 : Fork\r\n");
+        syscall_fork();
+        /* Temp */
+        run_process(&sys_state.procs[sys_state.last_pid]);
+        break;
+    case 1:
+        /* Exit */
+        proc_verbose("Syscall code 1 : Exit\r\n");
+        syscall_exit();
+        run_process(&sys_state.procs[1]);
+        break;
+    case 2:
+        /* Wait */
+        proc_verbose("Syscall code 2 : Wait\r\n");
+        syscall_wait();
+        run_process(&sys_state.procs[2]);
         break;
     case 100:
         /* Halt syscall (halt cannot be executed at EL0) */
@@ -231,6 +367,7 @@ void c_el1_svc_aarch64_handler(uint64_t esr_el1){
         abort();
     }
 }
+
 
 /****  SYS_STATE book-keeping for other files *****/
 /* Warning : ranslation_fault_handler uses this (and free may ine the future)*/

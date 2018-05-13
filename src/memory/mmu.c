@@ -507,6 +507,7 @@ void process_init_copy_and_write(int pid){
             }
         }
     }
+    return;
 }
 
 

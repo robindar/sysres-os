@@ -35,4 +35,30 @@ Then Stack/Heap
             - Thus there is no need for set_lvl2_table_address_from_TTBR0_EL1 to be called in mmu.c
 
 
+# Procs reserved #
+- 0 : Kernel
+- 1 : Init
+
+# Process return conventions
+  Processes may return a err_t instead of simple int
+
+# Syscalls #
+
+
+
+- 0 Fork :
+  int fork(int priority);
+  - Arg : x0 : priority of the child
+  - Return value in x0:
+    - Child pid on sucess
+    - -1 on failure and errno set accordingly
+- 1 Exit :
+  void exit(errno_t no, errdata_t data);
+- 2 Wait :
+  int wait(err_t * status);
+  - Arg : x0 : pointer to a err_t sruct to store proc return data if non NULL
+  - Return value : x0 :
+    - Child pid on success
+    - -1 on failure and errno set accordingly
+
 

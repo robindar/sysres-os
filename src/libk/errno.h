@@ -12,7 +12,7 @@
  */
 /* Screw up good practices, nothing else worked */
 
-enum errno_value {
+typedef enum {
     OK = 0,
     STACK_OVERFLOW,
     HEAP_OVERFLOW,
@@ -26,14 +26,20 @@ enum errno_value {
     FILE_MISSING,
     DIRECTORY_MISSING,
     FILE_BUSY,
-    NO_SPACE_LEFT
-};
+    NO_SPACE_LEFT,
+    MAX_PROC_REACHED,
+    TOO_HIGH_CHILD_PRIORITY,
+    NO_CHILD,
+} errno_t;
 
-struct errno_struct {
-    enum errno_value no;
-    uint64_t descr;
-};
+typedef uint64_t errdata_t;
 
-extern struct errno_struct err;
+typedef struct {
+    errno_t no;
+    errdata_t data;
+} err_t;
 
+extern err_t err;
+
+void print_err(err_t);
 #endif

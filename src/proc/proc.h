@@ -46,7 +46,15 @@ typedef struct {
     void * global_base;
 } mem_conf;
 
-typedef struct{
+/* x[0] : addr, x[i] : data_i */
+/* Data1 and data2 will be written at addr in the process memory */
+/* (One stp instruction) */
+/* If you need more space, add a size field */
+/* And make an array of size 3N */
+/* If addr ie x[0] = NULL, no write is made */
+typedef struct {uint64_t x [3];} write_back;
+
+typedef struct proc_descriptor {
     int pid;
     int parent_pid;
     int priority; /* Priority from 0 to 15, 15 being the highest */
@@ -56,7 +64,13 @@ typedef struct{
     bool initialized;
     context saved_context;
     mem_conf mem_conf;
-    struct errno_struct err;
+    err_t err;
+    /* FILO struct, NULL when empty */
+    /* TODO : change to doubly linked list ? */
+    struct proc_descriptor * child;
+    struct proc_descriptor * sibling;
+
+    write_back write_back;
     /* TODO : channels */
 } proc_descriptor;
 
@@ -71,6 +85,7 @@ int exec_proc(int pid);
 void restore_errno(const proc_descriptor * proc);
 /* WARNING : kernel memory alloc functions mustn't be called after this*/
 void restore_alloc_conf(const proc_descriptor * proc);
+void save_alloc_conf(proc_descriptor * proc);
 uint64_t get_lvl2_address_from_sys_state(int pid);
 int get_curr_pid();
 int get_parent_pid(int pid);
