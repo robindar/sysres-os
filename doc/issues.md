@@ -11,3 +11,11 @@
 - GDB not able to read usr code in usr mode
 - Free has to executed at EL1
 - GCC putting all non static global var at 0x0...
+
+# BCM2837 datatsheet #
+
+https://github.com/raspberrypi/documentation/issues/325#issuecomment-379651504
+
+# Clock interrupts #
+
+TIMER VALUE is documented as RO but must be initialized (no clue what LOAD is for)
