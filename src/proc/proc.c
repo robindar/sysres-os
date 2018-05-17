@@ -15,8 +15,7 @@ static system_state sys_state;
 
 uint64_t new_el0_pstate(){
     uint64_t pstate = 0;
-    /* Enable exceptions */
-    pstate |= MASK(9,6);
+    /* Enable exceptions : leave DAIF at zero */
     /* Mode = 0 -> EL0 */
     return pstate;
 }
@@ -27,7 +26,8 @@ proc_descriptor new_proc_descriptor(int pid, int parent_pid, int priority, void 
     proc.parent_pid           = parent_pid;
     proc.priority             = priority;
     proc.state                = RUNNABLE;
-    proc.sched_policy         = DEFAULT;
+    proc.sched_conf.time_left = QUANTUM;
+    proc.sched_conf.preempt   = true;
     proc.initialized          = false;
     proc.saved_context.pstate = new_el0_pstate();
     proc.saved_context.sp     = STACK_BEGIN;
@@ -47,7 +47,8 @@ void make_child_proc_descriptor(proc_descriptor * child, proc_descriptor * paren
     child->parent_pid           = parent->pid;
     child->priority             = priority;
     child->state                = RUNNABLE;
-    child->sched_policy         = DEFAULT;
+    child->sched_conf.time_left = QUANTUM;
+    child->sched_conf.preempt   = true;
     child->initialized          = false;
     child->saved_context.pstate = parent->saved_context.pstate;
     child->saved_context.sp     = parent->saved_context.sp;
@@ -79,9 +80,13 @@ void print_proc_descriptor(const proc_descriptor * proc){
         "Initialized : %s\r\n"
         "Err.no : %d\r\n",
         "Err.descr : %d\r\n",
+        "Preemptible : %d\r\n",
+        "Time left : %ds\r\n"
         proc->pid, proc->parent_pid, proc->priority,
         proc->state, proc->initialized ? "Yes" : "No",
-        proc->err.no, proc->err.data);
+        proc->err.no, proc->err.data,
+        proc->sched_conf.preempt ? "Yes" : "No",
+        proc->sched_conf.time_left * 1000 / SECOND);
     uart_verbose(
         "pc : 0x%x\r\n"
         "sp : 0x%x\r\n"
@@ -172,7 +177,10 @@ void restore_alloc_conf(const proc_descriptor * proc){
 /* Warning :
    may be confusing, but it does more thing than its counterpart restore_context */
 /* We are still with the proc MMU and SP */
-void save_context(uint64_t sp, uint64_t elr_el1, uint64_t pstate, uint64_t handler_sp){
+void save_context(uint64_t sp, uint64_t elr_el1, uint64_t pstate, uint64_t handler_sp, uint64_t is_timer_irq){
+    sys_state.procs[sys_state.curr_pid].sched_conf.time_left =
+        is_timer_irq ? 0 : get_curr_timer_value();
+    clear_ack_timer_irq();   /* Stop timer */
     context * const ctx = &(sys_state.procs[sys_state.curr_pid].saved_context);
     ctx->sp = sp;
     ctx->pc = elr_el1;
@@ -203,6 +211,8 @@ void run_process(proc_descriptor * proc){
     /* Should not be used on kernel */
     assert(proc->pid > 0);
     assert(proc->state == RUNNABLE);
+    /* Make sure it has time to run */
+    assert((!proc->sched_conf.preempt) || proc->sched_conf.time_left > 0);
     /* Must be in kernel mode */
     assert(sys_state.curr_pid == 0);
     /* Initialization is no more done here */
@@ -216,6 +226,7 @@ void run_process(proc_descriptor * proc){
 /**** START PROCESS ****/
 
 /* Kernel function only */
+__attribute__((__noreturn__))
 int exec_proc(int pid){
     run_process(&sys_state.procs[pid]);
 }
@@ -333,20 +344,16 @@ void c_el1_svc_aarch64_handler(uint64_t esr_el1){
         /* Fork */
         proc_verbose("Syscall code 0 : Fork\r\n");
         syscall_fork();
-        /* Temp */
-        run_process(&sys_state.procs[sys_state.last_pid]);
         break;
     case 1:
         /* Exit */
         proc_verbose("Syscall code 1 : Exit\r\n");
         syscall_exit();
-        run_process(&sys_state.procs[1]);
         break;
     case 2:
         /* Wait */
         proc_verbose("Syscall code 2 : Wait\r\n");
         syscall_wait();
-        run_process(&sys_state.procs[2]);
         break;
     case 100:
         /* Halt syscall (halt cannot be executed at EL0) */
@@ -366,6 +373,7 @@ void c_el1_svc_aarch64_handler(uint64_t esr_el1){
         uart_error("Aborting...\r\n");
         abort();
     }
+    schedule();
 }
 
 
@@ -384,4 +392,12 @@ int get_curr_pid(){
 
 int get_parent_pid(int pid){
     return sys_state.procs[pid].parent_pid;
+}
+
+/****  SCHEDULER  ****/
+__attribute__((__noreturn__))
+void schedule(){
+    proc_verbose("Entering schedule after execution of proc %d\r\n", sys_state.last_pid);
+    sys_state.procs[sys_state.last_pid].sched_conf.time_left = QUANTUM;
+    exec_proc(sys_state.last_pid);
 }

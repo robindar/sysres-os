@@ -62,3 +62,13 @@ Then Stack/Heap
     - -1 on failure and errno set accordingly
 
 
+
+# Timer #
+Due to material limitations, ie if IRQ are masked in PSTATE (after an exc at EL1 for ex) we have no way of knowing that a timer has timed out, we do the follwoing :
+- On a sync exception from EL0 != SVC(the only one which can resume execution) we disable IRQ in timer control. this way is_timer_finished reports accuratly the end of the timer.
+  We only have, before returning to EL0, to restart the timer with a very small time (EPSILON) if the timer had timed out or with its curr value o/w
+- On a syscall we switch off the timer and back up its value.
+
+The Epsilon plays a special role :
+- It is added to the timer whenever we are not sure it will make it through the switch
+  Ex : translation_fault -> before resuming exec, timer < epsilon : we put it at epsilon so it can go through the switch

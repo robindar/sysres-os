@@ -345,12 +345,14 @@ void check_identity_paging() {
     uart_debug("Checked identity paging\r\n");
 }
 
-void map_GPIO(){
+void map_peripheral_pages(){
     block_attributes_sg1 ba = new_block_attributes_sg1(IO_PAGE | ACCESS_FLAG_SET, DEVICE);
     /* Warning Access falg is set to 1 : you can set it to zero if you want but make sure the Access flag fault handling uses no uart o/w you'll end up in an infinite loop */
     bind_address(GPIO_BASE,GPIO_BASE, ba);
     bind_address(GPIO_BASE + 0x1000,GPIO_BASE + 0x1000, ba);
     bind_address(GPIO_BASE + 0x15000,GPIO_BASE + 0x15000, ba);
+    ba = new_block_attributes_sg1(KERNEL_PAGE | ACCESS_FLAG_SET, DEVICE);
+    bind_address(TIMER_IRQ_PAGE, TIMER_IRQ_PAGE, ba);
     uart_info("Identity paging success\r\n");
 }
 
@@ -423,11 +425,12 @@ void init_physical_memory_map () {
     uint32_t delta = 0; // Number of pages skipped for uart
     for (uint32_t i = 0; i < (RAM_SIZE - id_paging_size) / GRANULE - SKIPPED_PAGES; i++) {
 
-        /* skip SKIPPED_PAGES pages for uart */
+        /* skip SKIPPED_PAGES pages for peripherals */
         switch ( (i + delta) * GRANULE + id_paging_size) {
             case GPIO_BASE:
             case GPIO_BASE + 0x1000:
             case GPIO_BASE + 0x15000:
+            case TIMER_IRQ_PAGE:
                 delta += 1;
                 break;
         }
@@ -535,8 +538,8 @@ uint64_t c_init_mmu(uint64_t pid){
         check_identity_paging();
     }
     else process_init_copy_and_write(pid);
-    /* Map GPIO */
-    map_GPIO();
+    /* Map GPIO and TIMER*/
+    map_peripheral_pages();
     /* Stack Initialization */
     int status = get_new_page(GPIO_BASE - GRANULE, DATA_PAGE | ACCESS_FLAG_SET, NORMAL_WT_NT) & MASK(2, 0);
     if(status)

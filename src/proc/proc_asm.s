@@ -7,6 +7,7 @@ restore_and_run:
     //x3: pstate
     //x4: TTBR0_EL1
     //x5: address of write-back structure
+    //x6 : time left
     msr TTBR0_EL1, x4                 //Switch to proc MMU
     ISB                               //Done here bc we mustn't touch EL1 stack after
     msr spsr_el1, x3

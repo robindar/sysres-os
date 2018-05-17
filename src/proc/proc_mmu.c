@@ -32,6 +32,8 @@ void switch_to_proc(proc_descriptor * proc){
     restore_alloc_conf(proc);
     restore_errno(proc);
     proc->initialized = true;
+    if(proc->sched_conf.preempt)
+        start_countdown(proc->sched_conf.time_left);
     /* We are using x0-x7 to pass parameters */
     restore_and_run(
         (uint64_t) &(proc->saved_context.registers[N_REG - 1]),

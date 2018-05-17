@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include "../libk/errno.h"
+#include "../interrupt/timer.h"
 
 /* We will follow first the specifications of the micro-kernel given during the classs */
 
@@ -23,9 +24,10 @@ enum proc_state {
     KERNEL,                     /* Process 0 is Kernel (convention) */
 };
 
-enum sched_policy {
-    DEFAULT                     /* TODO : add realtime non preemptible, realtime preemptible, normal like Linux ? */
-};
+typedef struct {
+    uint32_t time_left;
+    bool preempt;
+} sched_conf;
 
 typedef struct {
     uint64_t registers[N_REG];
@@ -59,7 +61,7 @@ typedef struct proc_descriptor {
     int parent_pid;
     int priority; /* Priority from 0 to 15, 15 being the highest */
     enum proc_state state;
-    enum sched_policy sched_policy;
+    sched_conf sched_conf;
     /* Indicates whether this process has already been run/ initialized */
     bool initialized;
     context saved_context;
@@ -90,4 +92,6 @@ uint64_t get_lvl2_address_from_sys_state(int pid);
 int get_curr_pid();
 int get_parent_pid(int pid);
 
+__attribute__((__noreturn__))
+void schedule();
 #endif

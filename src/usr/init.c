@@ -7,7 +7,7 @@
 
 void main_init(){
     uart_info("Init process running\r\n");
-    fork_test2();
+    proc_timer_test();
     uart_info("Halting...\r\n");
     /* Halt syscall : TODO : do a lovely interface */
     SYSCALL(100);

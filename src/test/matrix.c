@@ -132,9 +132,10 @@ void syscall_test_product(matrix * a, matrix * b, matrix * c) {
 }
 
 
+#define SZ 2
+
 void matrix_main() {
     uart_debug("Entering matrix test\r\n");
-    #define SZ 2
 
     matrix a, b, c;
 
@@ -148,6 +149,21 @@ void matrix_main() {
     assert(equal(b, c));
     uart_debug("Done matrix test\r\n");
 }
+
+void matrix_main_soft() {
+    uart_debug("Entering matrix test\r\n");
+
+    matrix a, b, c;
+
+    a = new_identity(SZ ,SZ);
+    b = new_matrix(SZ ,SZ);
+    fill_rand(&b);
+    c = new_product(&a, &b);
+    assert(equal(b, c));
+    uart_debug("Done matrix test\r\n");
+}
+
+
 
 /* void matrix_id_sys_call_test(){ */
 /*     uart_debug("Entering matrix_id_syscall_test\r\n"); */

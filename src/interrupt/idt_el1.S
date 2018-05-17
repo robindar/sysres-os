@@ -22,16 +22,7 @@ curr_el_sp0_sync:
 
 .balign 0x80
 curr_el_sp0_irq:
-    stp x0, x1,  [sp, #-16]!
-    stp x2, x3,  [sp, #-16]!
-    stp x4, x5,  [sp, #-16]!
-    stp x6, x7,  [sp, #-16]!
-    stp x8, x9,  [sp, #-16]!
-    stp x10,x11, [sp, #-16]!
-    stp x12,x13, [sp, #-16]!
-    stp x14,x15, [sp, #-16]!
-    mov x0, 1
-    mov x1, 1
+    msr SPSel, #1
     b el1_irq_handler
 
 .balign 0x80
@@ -77,16 +68,6 @@ curr_el_spx_sync:
 
 .balign 0x80
 curr_el_spx_irq:
-    stp x0, x1,  [sp, #-16]!
-    stp x2, x3,  [sp, #-16]!
-    stp x4, x5,  [sp, #-16]!
-    stp x6, x7,  [sp, #-16]!
-    stp x8, x9,  [sp, #-16]!
-    stp x10,x11, [sp, #-16]!
-    stp x12,x13, [sp, #-16]!
-    stp x14,x15, [sp, #-16]!
-    mov x0, 1
-    mov x1, 5
     b el1_irq_handler
 
 .balign 0x80
@@ -124,8 +105,7 @@ lower_el_aarch64_sync:
 
 .balign 0x80
 lower_el_aarch64_irq:
-    mov x0, 1
-    mov x1, 9
+    msr spsel, xzr                  //Switch to SP_EL0 (not to destroy application stack)
     b el1_irq_handler
 
 .balign 0x80
@@ -142,7 +122,9 @@ lower_el_aarch64_serror:
 
 .balign 0x80
 lower_el_aarch32_sync:
-    b lower_el_el1_sync_handler
+    mov x0, 1
+    mov x1, 12
+    b el1_sync_handler
 
 .balign 0x80
 lower_el_aarch32_irq:
@@ -195,10 +177,12 @@ lower_el_el1_sync_handler:
     stp x26, x27,  [sp, #-16]!
     stp x28, x29,  [sp, #-16]!
     stp x30, x30,  [sp, #-16]!      //Stack has to be 16-byte aligned
+    bl mask_timer_irq
     add x0, sp, #(16 * 16)          //Backup SP_EL0 (as it was before interrupt)
     mrs x1, elr_el1
     mrs x2, spsr_el1                //Backup of pstate
     mov x3, sp                      //Handler SP
+    mov x4, xzr                     //Indicates it's not a timer irq
     bl save_context
     add sp, sp, #(32 * 8)           //Clean stack
     mrs x0, esr_el1                 //Move ESR_EL1 to X0
@@ -216,6 +200,7 @@ lower_el_el1_sync_handler:
     //Or we are coming from an unhandled exception source and the whole system crashes, so we don't save anything
 el1_sync_handler:
     //For now everything is aved with SP_ELn
+    bl mask_timer_irq
     stp x29,x30, [sp, #-16]!        //Save x29, x30
     mrs x9, spsr_el1                //Backup spsr_el1, elr_el1 as explained in the doc
     mrs x10, elr_el1
@@ -239,6 +224,7 @@ el1_sync_handler:
     msr TTBR0_EL1, x10
     ISB
     msr SPSel, x9                 //We are back with SP_ELn where we left our things
+    bl restart_timer              //Will not restart timer if they were not supposed to be running
     ldp x2, x3, [sp], #16
     msr spsr_el1, x2
     msr elr_el1, x3
@@ -275,8 +261,43 @@ el1_serror_handler:
     ldp x0, x1,  [sp], #16
     eret
 
-
 el1_irq_handler:
+    //Now backup everything : there will probably have a context switch
+    //Don't forget to clean this
+    stp x0,  x1,   [sp, #-16]!
+    stp x2,  x3,   [sp, #-16]!
+    stp x4,  x5,   [sp, #-16]!
+    stp x6,  x7,   [sp, #-16]!
+    stp x8,  x9,   [sp, #-16]!
+    stp x10, x11,  [sp, #-16]!
+    stp x12, x13,  [sp, #-16]!
+    stp x14, x15,  [sp, #-16]!
+    stp x16, x17,  [sp, #-16]!
+    stp x18, x19,  [sp, #-16]!
+    stp x20, x21,  [sp, #-16]!
+    stp x22, x23,  [sp, #-16]!
+    stp x24, x25,  [sp, #-16]!
+    stp x26, x27,  [sp, #-16]!
+    stp x28, x29,  [sp, #-16]!
+    stp x30, x30,  [sp, #-16]!
+    bl is_timer_irq
+    cbz x0, no_timer_el1_irq_handler //if it's not a timer event, jump
+    //It's atimer -> context switch
+    add x0, sp, #(16 * 16)          //Backup SP_EL0 (as it was before interrupt)
+    mrs x1, elr_el1
+    mrs x2, spsr_el1                //Backup of pstate
+    mov x3, sp                      //Handler SP
+    mov x4, #1                      //Indicates times up
+    bl save_context
+    add sp, sp, #(32 * 8)           //Clean stack
+    mov x2, #1
+    msr spsel, x2                   //Switch back to SP_EL1
+    ldr x2, = __mmu_tables_start ;  //Switch to kernel MMU to avoid breaking anything for the process
+    msr ttbr0_el1, x2               // Set ttbr0
+    b c_timer_irq_handler     //Warning this musn't return here
+
+
+no_timer_el1_irq_handler:
     stp x29,x30, [sp, #-16]!//Save x29, x30
     mrs x2, spsr_el1
     mrs x3, elr_el1

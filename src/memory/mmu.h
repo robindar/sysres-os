@@ -7,6 +7,7 @@
 #include "../libk/debug.h"
 #include "../libk/uart.h"
 #include "../proc/proc.h"
+#include "../interrupt/timer.h"
 
 #define one_u64 ((uint64_t) 1)
 #define AT(addr) (* (uint64_t *) (addr))

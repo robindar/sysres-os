@@ -126,6 +126,13 @@ void c_sync_handler(uint64_t el, uint64_t nb, uint64_t spsr_el, uint64_t elr_el,
 
 }
 
+__attribute__((__noreturn__))
+void c_timer_irq_handler(){
+    uart_verbose("C Timer IRQ Handler\r\n");
+    clear_ack_timer_irq();
+    schedule();
+}
+
 
 void c_serror_handler(uint64_t el, uint64_t nb, uint64_t elr_el, uint64_t spsr_el, uint64_t esr_el, uint64_t far_el) {
     uart_error(
@@ -137,7 +144,7 @@ void c_serror_handler(uint64_t el, uint64_t nb, uint64_t elr_el, uint64_t spsr_e
     abort();
 }
 
-/* TODO : get back info on the interrupt from GIC */
+/* TODO : get back info on the interrupt from GIC -> it's a lie there is no GIC */
 void c_irq_handler(uint64_t el, uint64_t nb) {
     uart_error(
         " IRQ :\r\nAt level : EL%d\r\nCase nb :%d\r\n",
