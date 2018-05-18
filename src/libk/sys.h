@@ -3,19 +3,14 @@
 #include "errno.h"
 #include <stdint.h>
 #include <stdbool.h>
-
-typedef struct {
-    uint64_t data1;
-    uint64_t data2;
-} recv_t;
+#include <stddef.h>
 
 #define SYSCALL(code) asm volatile("SVC #" # code "")
 int fork(int priority);
 __attribute__((__noreturn__))
 void exit(errno_t no, errdata_t data);
 int wait(err_t * status);
-int send(int target_pid, uint64_t data1, uint64_t data2,
-         recv_t * receive_data, bool share_buff);
-int receive(recv_t * receive_data);
-int acknowledge(int return_code, uint64_t data1, uint64_t data2);
+int send(int target_pid, void * send_data, size_t send_size, void * ack_data, size_t ack_size, bool wait);
+int receive(void * receive_data, size_t receive_size);
+int acknowledge(int return_code, void * ack_data, size_t ack_size);
 #endif

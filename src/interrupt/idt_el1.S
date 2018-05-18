@@ -183,6 +183,7 @@ lower_el_el1_sync_handler:
     mrs x2, spsr_el1                //Backup of pstate
     mov x3, sp                      //Handler SP
     mov x4, xzr                     //Indicates it's not a timer irq
+    mrs x5, esr_el1                 //Gives a way to det SVC code
     bl save_context
     add sp, sp, #(32 * 8)           //Clean stack
     mrs x0, esr_el1                 //Move ESR_EL1 to X0

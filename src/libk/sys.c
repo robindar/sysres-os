@@ -36,8 +36,7 @@ int wait(err_t * status){
     return (int)ret;
 }
 
-int send(int target_pid, uint64_t data1, uint64_t data2,
-         recv_t * receive_data, bool share_buff){
+int send(int target_pid, void * send_data, size_t send_size, void * ack_data, size_t ack_size, bool wait){
     uint64_t ret;
     asm volatile(
         "mov x0, %1;"\
@@ -45,28 +44,31 @@ int send(int target_pid, uint64_t data1, uint64_t data2,
         "mov x2, %3;"\
         "mov x3, %4;"\
         "mov x4, %5;"\
+        "mov x5, %6;"\
         "SVC #3;"\
         "mov %0, x0;"
         : "=r"((uint64_t) ret)
-        :  "r"((uint64_t) target_pid), "r"(data1), "r"(data2),
-         "r"((uint64_t) receive_data), "r"((uint64_t) share_buff)
-        :"x0", "x1", "x2", "x3", "x4");
+        :  "r"((uint64_t) target_pid), "r"((uint64_t) send_data),
+           "r"((uint64_t) send_size),  "r"((uint64_t) ack_data),
+           "r"((uint64_t) ack_size),   "r"((uint64_t) wait)
+        :"x0", "x1", "x2", "x3", "x4", "x5");
     return (int)ret;
 }
 
-int receive(recv_t * receive_data){
+int receive(void * receive_data, size_t receive_size){
     uint64_t ret;
     asm volatile(
         "mov x0, %1;"\
+        "mov x1, %2;"\
         "SVC #4;"\
         "mov %0, x0;"
         : "=r"((uint64_t) ret)
-        :  "r"((uint64_t) receive_data)
-        :"x0");
+        :  "r"((uint64_t) receive_data), "r"((uint64_t) receive_size)
+        :"x0", "x1");
     return (int)ret;
 }
 
-int acknowledge(int return_code, uint64_t data1, uint64_t data2){
+int acknowledge(int return_code, void * ack_data, size_t ack_size){
     uint64_t ret;
     asm volatile(
         "mov x0, %1;"\
@@ -75,7 +77,8 @@ int acknowledge(int return_code, uint64_t data1, uint64_t data2){
         "SVC #5;"\
         "mov %0, x0;"
         : "=r"((uint64_t) ret)
-        :  "r"((uint64_t) return_code), "r"(data1), "r"(data2)
-        :"x0", "x1", "x2", "x3", "x4");
+        :  "r"((uint64_t) return_code), "r"((uint64_t) ack_data),
+           "r"((uint64_t) ack_size)
+        :"x0", "x1", "x2");
     return (int)ret;
 }

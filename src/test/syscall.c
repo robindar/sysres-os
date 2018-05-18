@@ -72,6 +72,11 @@ void fork_test2(){
     }
 }
 
+typedef struct {
+    uint64_t data1;
+    uint64_t data2;
+} recv_t;
+
 void chan_test1(){
     uart_verbose("Beginning chan test 1\r\n");
     int ret = fork(0);
@@ -80,11 +85,14 @@ void chan_test1(){
     if(ret == 0){
         /* Child */
         uart_info("Child process running\r\n");
-        recv_t recv;
-        int status = send(1, 42, -1, &recv, false);
+        recv_t sd;
+        char ack[256];
+        sd.data1 = 42;
+        sd.data2 = (uint64_t) -1;
+        int status = send(1, &sd, sizeof(recv_t), ack, 256, true);
         assert(status == 54);
-        assert(recv.data1 == 33);
-        assert(recv.data2 == (uint64_t)-2);
+        uart_verbose("Ack : %s\r\n", ack);
+        assert(strcmp(ack, "Hello child") == 0);
         uart_debug("Test passed successfully\r\n");
         exit(0, 0);
     }
@@ -92,13 +100,13 @@ void chan_test1(){
         /* Parent */
         uart_info("Parent process running\r\n");
         recv_t recv;
-        int pid = receive(&recv);
+        char * ack = "Hello child";
+        int pid = receive(&recv, sizeof(recv_t));
         assert(pid == 2);
         uart_debug("Parent heard from his or her child %d\r\n", pid);
         assert(recv.data1 == 42);
         assert(recv.data2 == (uint64_t)-1);
-        int ret = acknowledge(54, 33, -2);
-        uart_verbose("ret: %d\r\n", ret);
+        int ret = acknowledge(54, ack, strsize(ack));
         assert(ret == 0);
         exit(0, 0);
     }

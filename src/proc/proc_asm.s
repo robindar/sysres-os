@@ -7,7 +7,6 @@ restore_and_run:
     //x3: pstate
     //x4: TTBR0_EL1
     //x5: address of write-back structure
-    //x6 : time left
     msr TTBR0_EL1, x4                 //Switch to proc MMU
     ISB                               //Done here bc we mustn't touch EL1 stack after
     msr spsr_el1, x3
@@ -20,6 +19,10 @@ restore_and_run:
 no_write_back:
     msr spsel, xzr                     //Switch to SP_EL0 stack pointer
     mov sp, x2                         //Restore SP_EL0
+    //here we restore buff
+    stp x0, x1, [sp, #-16]!             //Backup x0
+    bl write_buff_svc
+    ldp x0, x1, [sp], #16
     mov x2, #1
     msr spsel, x2                      //Switch back to SP_EL1
     ldr x2, =0x3F200000                //Clean EL1 stack

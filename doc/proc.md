@@ -61,20 +61,24 @@ Then Stack/Heap
     - Child pid on success
     - -1 on failure and errno set accordingly
 - 3 : Send
-  int send(int target_pid, uint64_t data1, uint64_t data2, void * receive_data,  bool share_buff)
+  int send(int target_pid, void * send_data, size_t send_size, void * ack_data, size_t ack_size, bool wait)
   - Arg :
-    - data1, data2 : data to be transmitted to the receiver
-    - whether or not to share a buffer
-    - address to a 128 bit zone to receive data1, data2
+    - send_addr : addr to [send_size] bytes of data to be sent to [target_pid]
+    - same for receive
+    - wait : whether or not to block until [target_pit] is listening
   - Return value : x0 :
-    - -1 on failure and errno set (non blocking, fails if target is not listening)
+    - -1 on failure and errno set (if non blocking, fails if target is not listening)
     - return code by receiver o/w
 - 4 : Receive
-  int receive(void * receive_data)
-  - Arg : address to a 128 bit zone to receive data1, data2
+  int receive(void * receive_data, size_t receive_size)
+  - Arg : address to a [receive_size] byte zone to receive the data
   - Return value : sender pid
 -5 : Acknowledge
-   int acknowledge(int return_status, uint64_t data1, uint64_t data2)
+   int acknowledge(int return_status, void * ack_data, size_t ack_size)
+
+In case of conflict bteween sizes, the receiver is right.
+Fails if (send_size > BUFF_SIZE or receive_size) or (ack_size from reciver > BUFF_SIZE)
+(we do not fail if receiver_size > BUFF_SIZE or ack_size from sender < ack_size from receiver)
 
 
 

@@ -7,6 +7,7 @@
 #include "../memory/alloc.h"
 #include "../usr/init.h"
 #include "../libk/errno.h"
+#include <stddef.h>
 
 #define PROC_VERBOSE
 
@@ -21,7 +22,7 @@ uint64_t new_el0_pstate(){
 }
 
 proc_descriptor new_proc_descriptor(int pid, int parent_pid, int priority, void (*p)()){
-    proc_descriptor proc;
+    proc_descriptor proc      = {0};
     proc.pid                  = pid;
     proc.parent_pid           = parent_pid;
     proc.priority             = priority;
@@ -37,31 +38,34 @@ proc_descriptor new_proc_descriptor(int pid, int parent_pid, int priority, void 
     proc.sibling              = NULL;
     proc.child                = NULL;
     proc.write_back.x[0]      = 0;
+    proc.sender_data.acknowledged = true;
+    proc.buffer.write_addr        = 0;
+    proc.buffer.used_size         = 0;
     /* We kindly initialize the registers to zero */
     for(int i = 0; i < N_REG; i++) proc.saved_context.registers[i] = 0;
-    proc.sender_data.acknowledged = true;
     return proc;
 }
 
 void make_child_proc_descriptor(proc_descriptor * child, proc_descriptor * parent, int pid, int priority){
+    /* Redundant but to make sure everything is initilized at it should */
+    *child = new_proc_descriptor(pid, parent->pid, priority,
+                                 (void (*)()) parent->saved_context.pc);
     child->pid                  = pid;
     child->parent_pid           = parent->pid;
     child->priority             = priority;
     child->state                = RUNNABLE;
     child->sched_conf.time_left = QUANTUM;
-    child->sched_conf.preempt   = false;
+    child->sched_conf.preempt   = parent->sched_conf.preempt;
     child->initialized          = false;
     child->saved_context.pstate = parent->saved_context.pstate;
     child->saved_context.sp     = parent->saved_context.sp;
     child->saved_context.pc     = parent->saved_context.pc;
     child->err                  = parent->err;
     child->sibling              = parent->child;
-    child->child                = NULL;
-    child->write_back.x[0]      = 0;
-    child->saved_context.registers[0] = 0;
+    /* Ack are still for the parent */
+    child->sender_data.acknowledged = true;
     for(int i = 1; i < N_REG; i++)
         child->saved_context.registers[i] = parent->saved_context.registers[i];
-    child->sender_data.acknowledged = parent->sender_data.acknowledged;
     return;
 }
 
@@ -175,11 +179,34 @@ void restore_alloc_conf(const proc_descriptor * proc){
     return;
 }
 
+/* Backup buffer for syscall */
+void back_up_buff_svc(proc_descriptor * proc,  uint64_t svc_code){
+    if(svc_code == 3 || svc_code == 5){
+        void * addr = (void *) proc->saved_context.registers[1];
+        size_t size = (size_t) proc->saved_context.registers[2];
+        proc->buffer.used_size = size;
+        memmove((void *) proc->buffer.buff, addr,
+                size < BUFF_SIZE ? size : BUFF_SIZE);
+    }
+    return;
+}
+
+void write_buff_svc(){
+    proc_descriptor * proc = &sys_state.procs[sys_state.curr_pid];
+    if(proc->buffer.write_addr != 0){
+        memmove((void *) proc->buffer.write_addr, (void *) proc->buffer.buff,
+                proc->buffer.used_size);
+    }
+    proc->buffer.write_addr = 0;
+    proc->buffer.used_size  = 0;
+    return;
+}
+
 /* TODO : NEON/SIMD registers ?? */
 /* Warning :
    may be confusing, but it does more thing than its counterpart restore_context */
 /* We are still with the proc MMU and SP */
-void save_context(uint64_t sp, uint64_t elr_el1, uint64_t pstate, uint64_t handler_sp, uint64_t is_timer_irq){
+void save_context(uint64_t sp, uint64_t elr_el1, uint64_t pstate, uint64_t handler_sp, uint64_t is_timer_irq, uint64_t esr_el1){
     sys_state.procs[sys_state.curr_pid].sched_conf.time_left =
         is_timer_irq ? 0 : get_curr_timer_value();
     clear_ack_timer_irq();   /* Stop timer */
@@ -194,6 +221,9 @@ void save_context(uint64_t sp, uint64_t elr_el1, uint64_t pstate, uint64_t handl
     ctx->registers[30] = AT(handler_sp + sizeof(uint64_t));
     save_alloc_conf(&sys_state.procs[sys_state.curr_pid]);
     save_errno((&sys_state.procs[sys_state.curr_pid]));
+    if(is_timer_irq == 0)
+        back_up_buff_svc(&sys_state.procs[sys_state.curr_pid],
+                         (esr_el1 & MASK(15,0)));
     /* We are in kernel mode now */
     /* set_lvl2_address_from_pid(0); */
     /* Indeed, setting lvl2_addr should be done only in mmu.c */
@@ -263,6 +293,7 @@ void syscall_fork(){
     parent->saved_context.registers[0] = child_pid;
     proc_descriptor * child = &sys_state.procs[child_pid];
     make_child_proc_descriptor(child, parent, child_pid, priority);
+    child->saved_context.registers[0] = 0;
     parent->child = child;
     /* Initializing MMU with copy and write */
     set_up_memory_new_proc(child);
@@ -332,53 +363,82 @@ void syscall_exit(){
 void handle_channel_connection(proc_descriptor * sender, proc_descriptor * receiver){
     proc_verbose("Handling channel connection:\r\nSender: %d\r\nReceiver: %d\r\n",
                  sender->pid, receiver->pid);
+    /* we side with the receiver */
+    if(receiver->receiver_data.receive_size < sender->sender_data.send_size){
+        sender->err.no = SEND_DATA_TOO_LARGE;
+        sender->saved_context.registers[0] = -1;
+        return;
+    }
     /* Needs acknowledge */
     sender->sender_data.acknowledged = false;
     /* If addr == null won't be written */
-    receiver->write_back.x[0] = receiver->receiver_data.receive_data;
-    receiver->write_back.x[1] = sender->sender_data.data1;
-    receiver->write_back.x[2] = sender->sender_data.data2;
+    assert(sender->buffer.used_size <= BUFF_SIZE);
+    assert(sender->buffer.used_size <= receiver->receiver_data.receive_size);
+    receiver->buffer.used_size = sender->buffer.used_size;
+    receiver->buffer.write_addr = receiver->receiver_data.receive_data;
+    memmove((void *) receiver->buffer.buff,
+            (void *) sender->buffer.buff,
+            sender->buffer.used_size);
+    sender->buffer.used_size = 0;
     receiver->receiver_data.source_pid = sender->pid;
-    /* Not implemented yet */
-    assert(!sender->sender_data.share_buff);
     receiver->saved_context.registers[0] = sender->pid;
+    sender->state = SENDING_CH;
     receiver->state = RUNNABLE;
+    return;
 }
 
 void syscall_send(){
     proc_descriptor * proc = &sys_state.procs[sys_state.last_pid];
     proc_verbose("Syscall send for process %d\r\n", proc->pid);
-    int target_pid = proc->saved_context.registers[0];
+    int target_pid       =        proc->saved_context.registers[0];
+    bool wait_for_listen = (bool) proc->saved_context.registers[5];
+    size_t size          =        proc->saved_context.registers[2];
     if(target_pid < 0 || target_pid >= MAX_PROC){
         proc->err.no = INVALID_PID;
         proc->saved_context.registers[0] = -1;
         return;
     }
-    else if(sys_state.procs[target_pid].state != LISTENING_CH){
+    else if(sys_state.procs[target_pid].state != LISTENING_CH
+            && (!wait_for_listen)){
         proc->err.no = TARGET_NOT_LISTENING;
         proc->saved_context.registers[0] = -1;
         return;
     }
-    proc->sender_data.target_pid          =        proc->saved_context.registers[0];
-    proc->sender_data.data1        =        proc->saved_context.registers[1];
-    proc->sender_data.data2        =        proc->saved_context.registers[2];
-    proc->sender_data.receive_data =        proc->saved_context.registers[3];
-    proc->sender_data.share_buff  = (bool) proc->saved_context.registers[4];
-    proc->state = SENDING_CH;
-    handle_channel_connection(proc, &sys_state.procs[target_pid]);
+    else if(size > BUFF_SIZE){
+        proc->err.no = SEND_DATA_TOO_LARGE;
+        proc->saved_context.registers[0] = -1;
+        return;
+    }
+    proc->sender_data.target_pid = proc->saved_context.registers[0];
+    proc->sender_data.send_size  = proc->saved_context.registers[2];
+    proc->sender_data.ack_data   = proc->saved_context.registers[3];
+    proc->sender_data.ack_size   = proc->saved_context.registers[4];
+    if(sys_state.procs[target_pid].state == LISTENING_CH)
+        handle_channel_connection(proc, &sys_state.procs[target_pid]);
+    else proc->state = WAIT_LISTENER;
+    return;
 }
 
 void syscall_receive(){
     proc_descriptor * proc = &sys_state.procs[sys_state.last_pid];
     proc_verbose("Syscall receive for process %d\r\n", proc->pid);
     proc->receiver_data.receive_data = proc->saved_context.registers[0];
+    proc->receiver_data.receive_size = proc->saved_context.registers[1];
     proc->state = LISTENING_CH;
+    int i;
+    for(i = 0; i < MAX_PROC; i++){
+        if(sys_state.procs[i].state == WAIT_LISTENER &&
+           sys_state.procs[i].sender_data.target_pid == proc->pid) break;
+    }
+    if(i < MAX_PROC)
+        handle_channel_connection(&sys_state.procs[i], proc);
+    return;
 }
 
 void handle_channel_ack(proc_descriptor * receiver, proc_descriptor * sender){
     proc_verbose("Handling channel ack:\r\nSender: %d\r\nReceiver: %d\r\n",
                  sender->pid, receiver->pid);
-    if(sender->sender_data.acknowledged){
+    if(sender->sender_data.acknowledged || sender->state != SENDING_CH){
         /* Error : nothing to acknowledge */
         receiver->err.no = SOURCE_ALREADY_ACKNOWLEDGED;
         receiver->saved_context.registers[0] = -1;
@@ -387,21 +447,33 @@ void handle_channel_ack(proc_descriptor * receiver, proc_descriptor * sender){
     assert(sender->sender_data.target_pid == receiver->pid);
     /* Everything went well */
     receiver->saved_context.registers[0] = 0;
-    sender->write_back.x[0] = sender->sender_data.receive_data;
-    sender->write_back.x[1] = receiver->receiver_data.data1;
-    sender->write_back.x[2] = receiver->receiver_data.data2;
+    /* we already have : */
+    assert(receiver->buffer.used_size <= BUFF_SIZE);
+    sender->buffer.used_size =
+        sender->sender_data.ack_size < receiver->buffer.used_size ?
+        sender->sender_data.ack_size : receiver->buffer.used_size;
+    memmove((void *) sender->buffer.buff,
+            (void *) receiver->buffer.buff,
+            sender->buffer.used_size);
+    sender->buffer.write_addr = sender->sender_data.ack_data;
+    receiver->buffer.used_size = 0;
     sender->saved_context.registers[0] = receiver->receiver_data.return_code;
-    assert(!sender->sender_data.share_buff);
     sender->state = RUNNABLE;
+    return;
 }
 
 void syscall_acknowledge(){
     proc_descriptor * proc = &sys_state.procs[sys_state.last_pid];
     proc_verbose("Syscall acknowledge for process %d\r\n", proc->pid);
+    size_t size = proc->saved_context.registers[2];
+    if(size > BUFF_SIZE){
+        proc->err.no = SEND_DATA_TOO_LARGE;
+        proc->saved_context.registers[0] = -1;
+        return;
+    }
     proc->receiver_data.return_code = proc->saved_context.registers[0];
-    proc->receiver_data.data1       = proc->saved_context.registers[1];
-    proc->receiver_data.data2       = proc->saved_context.registers[2];
     handle_channel_ack(proc, &sys_state.procs[proc->receiver_data.source_pid]);
+    return;
 }
 
 

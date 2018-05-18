@@ -33,6 +33,7 @@ typedef enum {
     INVALID_PID,
     TARGET_NOT_LISTENING,
     SOURCE_ALREADY_ACKNOWLEDGED,
+    SEND_DATA_TOO_LARGE,
 } errno_t;
 
 typedef uint64_t errdata_t;

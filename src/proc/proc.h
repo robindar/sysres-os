@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <stddef.h>
 #include "../libk/errno.h"
 #include "../interrupt/timer.h"
 
@@ -11,8 +12,9 @@
 /* we have 16 bits for ASID according to memory/init_mmu.s */
 /* but for now we will only allow 256 proc */
 /* see doc/mmu.md for why only 32 */
-#define MAX_PROC  32
-#define N_REG     31            /* x0-x30 */
+#define MAX_PROC   32
+#define N_REG      31            /* x0-x30 */
+#define BUFF_SIZE 256
 
 enum proc_state {
     FREE = 0,                   /* Unused proc slot */
@@ -21,6 +23,7 @@ enum proc_state {
     ZOMBIE,                     /* After Exit */
     SENDING_CH,                 /* Blocked Sending on channel */
     LISTENING_CH,               /* Blocked Listning on channel */
+    WAIT_LISTENER,              /* Blocked waiting listener */
     KERNEL,                     /* Process 0 is Kernel (convention) */
 };
 
@@ -50,20 +53,24 @@ typedef struct {
 
 typedef struct {
     int target_pid;
-    uint64_t data1;
-    uint64_t data2;
-    bool share_buff;
-    uint64_t receive_data;
+    size_t send_size;
+    uint64_t ack_data;
+    size_t ack_size;
     bool acknowledged;
 } sender_data;
 
 typedef struct {
-    uint64_t receive_data;
     int source_pid;
+    size_t receive_size;
+    uint64_t receive_data;
     int return_code;
-    uint64_t data1;
-    uint64_t data2;
 } receiver_data;
+
+typedef struct {
+    char buff[BUFF_SIZE];
+    size_t used_size;           /* in bytes */
+    uint64_t write_addr;        /* if !=0, buff is written here */
+} buffer;
 
 /* x[0] : addr, x[i] : data_i */
 /* Data1 and data2 will be written at addr in the process memory */
@@ -89,6 +96,7 @@ typedef struct proc_descriptor {
     struct proc_descriptor * child;
     struct proc_descriptor * sibling;
 
+    buffer buffer;
     write_back write_back;
     sender_data sender_data;
     receiver_data receiver_data;
