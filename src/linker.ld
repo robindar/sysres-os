@@ -30,11 +30,8 @@ SECTIONS
         . = ALIGN(0x1000);
     __bss_end = .;
 
-    .filesystem ALIGN(0x1000): AT(ADDR(.filesystem) - 0x00000000) {
         __filesystem_start = .;
-        *(.filesystem)
         __filesystem_end = .;
-    }
     . = ALIGN(0x1000);
     __data_end = .;
 
