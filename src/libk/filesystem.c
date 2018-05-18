@@ -230,7 +230,7 @@ void print_filesystem_info () {
     uart_verbose("\r\nPrinting directory tree\r\n");
     char * root = kmalloc(sizeof(char));
     root[0] = 0;
-    print_directory(1, root, 10);
+    print_directory(1, root, 2);
     assert(0);
 }
 

@@ -351,7 +351,7 @@ void identity_paging() {
     uint64_t data_start, bss_end;
     /* Everything is GRANULE aligned */
     asm volatile ("ldr %0, =__data_start" : "=r"(data_start) : :);
-    asm volatile ("ldr %0, =__bss_end" : "=r"(bss_end) : :);
+    asm volatile ("ldr %0, =__data_end" : "=r"(bss_end) : :);
     uart_verbose("Id paging size : 0x%x\r\n", id_paging_size);
     uart_verbose("__data_start : 0x%x\r\n", data_start);
     uart_verbose("__bss_end : 0x%x\r\n", bss_end);
