@@ -35,6 +35,8 @@
 #define LOG_LEVEL _LOG_WARNING_
 #endif
 
+void uart_send(unsigned int t);
+
 void uart_init();
 void uart_putc(unsigned char c);
 unsigned char uart_getc();

@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include "proc.h"
 #include "../libk/errno.h"
+#include "../libk/filesystem.h"
 #include "../libk/uart.h"
 #include "../memory/alloc.h"
 #include "../test/test.h"
@@ -24,6 +25,7 @@ void kernel_main(uint64_t r0, uint64_t r1, uint64_t atags) {
     (void) r1;
     (void) atags;
     kernel_init();
+    init_filesystem();
     /* Start init process */
     kernel_timer_test();
 }
