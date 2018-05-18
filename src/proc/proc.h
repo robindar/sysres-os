@@ -72,14 +72,6 @@ typedef struct {
     uint64_t write_addr;        /* if !=0, buff is written here */
 } buffer;
 
-/* x[0] : addr, x[i] : data_i */
-/* Data1 and data2 will be written at addr in the process memory */
-/* (One stp instruction) */
-/* If you need more space, add a size field */
-/* And make an array of size 3N */
-/* If addr ie x[0] = NULL, no write is made */
-typedef struct {uint64_t x [3];} write_back;
-
 typedef struct proc_descriptor {
     int pid;
     int parent_pid;
@@ -97,7 +89,6 @@ typedef struct proc_descriptor {
     struct proc_descriptor * sibling;
 
     buffer buffer;
-    write_back write_back;
     sender_data sender_data;
     receiver_data receiver_data;
 } proc_descriptor;

@@ -3,6 +3,7 @@
 #include "../usr/libc.h"
 #include "../libk/uart.h"
 #include "../libk/sys.h"
+#include "../libk/errno.h"
 
 void id_syscall_test(){
     uart_verbose("Entring id syscall test\r\n");
@@ -107,6 +108,42 @@ void chan_test1(){
         assert(recv.data1 == 42);
         assert(recv.data2 == (uint64_t)-1);
         int ret = acknowledge(54, ack, strsize(ack));
+        assert(ret == 0);
+        exit(0, 0);
+    }
+}
+
+void chan_test2(){
+    uart_verbose("Beginning chan test 2\r\n");
+    uart_verbose("Sizeof enum %d\r\n", sizeof(errno_t));
+    int ret = fork(0);
+    uart_verbose("Return value of fork : %d\r\n");
+    assert(ret != -1);
+    if(ret == 0){
+        /* Child */
+        uart_info("Child process running\r\n");
+        char * ack = "Yo parent";
+        int status = send(1, 0, sizeof(recv_t), ack, 256, true);
+        assert(status == 54);
+        assert(strcmp(ack, "Yo parent") == 0);
+        uart_verbose("Ack : %s\r\n", ack);
+        uart_debug("Test passed successfully\r\n");
+        exit(0, 0);
+    }
+    else{
+        /* Parent */
+        uart_info("Parent process running\r\n");
+        recv_t recv;
+        recv.data1 = 5;
+        recv.data2 = 6;
+        char * ack = "Hello child";
+        int pid = receive(&recv, sizeof(recv_t));
+        assert(pid == 2);
+        uart_debug("Parent heard from his or her child %d\r\n", pid);
+        uart_verbose("recv.data1: %x\r\n", recv.data1);
+        assert(recv.data1 == 5);
+        assert(recv.data2 == 6);
+        int ret = acknowledge(54, 0, strsize(ack));
         assert(ret == 0);
         exit(0, 0);
     }

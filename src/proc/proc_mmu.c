@@ -9,7 +9,7 @@
 
 /* Defined in proc_asm.s */
 __attribute__((__noreturn__))
-extern void restore_and_run(uint64_t reg_addr_end, uint64_t pc, uint64_t sp, uint64_t pstate, uint64_t ttbr0_el1, uint64_t writeback_addr);
+extern void restore_and_run(uint64_t reg_addr_end, uint64_t pc, uint64_t sp, uint64_t pstate, uint64_t ttbr0_el1);
 
 void set_up_memory_new_proc(proc_descriptor * proc){
     uint64_t lvl2_table_address = c_init_mmu(proc->pid);
@@ -40,7 +40,6 @@ void switch_to_proc(proc_descriptor * proc){
         proc->saved_context.pc,
         proc->saved_context.sp,
         proc->saved_context.pstate,
-        proc->mem_conf.ttbr0_el1,
-        (uint64_t) proc->write_back.x
+        proc->mem_conf.ttbr0_el1
         );
 }

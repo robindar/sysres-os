@@ -37,7 +37,6 @@ proc_descriptor new_proc_descriptor(int pid, int parent_pid, int priority, void 
     proc.err.data             = 0;
     proc.sibling              = NULL;
     proc.child                = NULL;
-    proc.write_back.x[0]      = 0;
     proc.sender_data.acknowledged = true;
     proc.buffer.write_addr        = 0;
     proc.buffer.used_size         = 0;
@@ -181,9 +180,9 @@ void restore_alloc_conf(const proc_descriptor * proc){
 
 /* Backup buffer for syscall */
 void back_up_buff_svc(proc_descriptor * proc,  uint64_t svc_code){
-    if(svc_code == 3 || svc_code == 5){
-        void * addr = (void *) proc->saved_context.registers[1];
-        size_t size = (size_t) proc->saved_context.registers[2];
+    void * addr = (void *) proc->saved_context.registers[1];
+    size_t size = (size_t) proc->saved_context.registers[2];
+    if((svc_code == 3 || svc_code == 5) && (addr != 0 && size > 0)){
         proc->buffer.used_size = size;
         memmove((void *) proc->buffer.buff, addr,
                 size < BUFF_SIZE ? size : BUFF_SIZE);
@@ -312,9 +311,10 @@ void handle_zombie_child(proc_descriptor * parent, proc_descriptor * child){
     print_err(child->err);
     #endif
     if(ret_status_addr != 0){
-        parent->write_back.x[0] = ret_status_addr;
-        parent->write_back.x[1] = child->err.no;
-        parent->write_back.x[2] = child->err.data;
+        parent->buffer.write_addr = ret_status_addr;
+        assert(sizeof(err_t) <= BUFF_SIZE);
+        memmove(parent->buffer.buff, &child->err, sizeof(err_t));
+        parent->buffer.used_size = sizeof(err_t);
     }
     child->state = FREE;
     parent->state = RUNNABLE;

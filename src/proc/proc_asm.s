@@ -6,17 +6,10 @@ restore_and_run:
     //x2: sp
     //x3: pstate
     //x4: TTBR0_EL1
-    //x5: address of write-back structure
     msr TTBR0_EL1, x4                 //Switch to proc MMU
     ISB                               //Done here bc we mustn't touch EL1 stack after
     msr spsr_el1, x3
     msr  elr_el1, x1
-    //Write back
-    ldp x6, x7, [x5, #8]
-    ldr x5,     [x5]
-    cbz x5, no_write_back             //If addr is zero no write-back
-    stp x6, x7, [x5]
-no_write_back:
     msr spsel, xzr                     //Switch to SP_EL0 stack pointer
     mov sp, x2                         //Restore SP_EL0
     //here we restore buff

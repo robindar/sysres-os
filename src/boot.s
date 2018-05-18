@@ -1,6 +1,8 @@
 // To keep this in the first portion of the binary.
 .section ".text.boot"
-
+__start:
+        b _start
+.balign 0x8000
 // Make _start global.
 .globl _start
 
