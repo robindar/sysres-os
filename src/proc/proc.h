@@ -19,8 +19,8 @@ enum proc_state {
     RUNNABLE,                   /* Ready to be executed */
     WAITING,                    /* for one of its child to die, after a wait call */
     ZOMBIE,                     /* After Exit */
-    READING,                    /* Blocked Reading channel */
-    WRITING,                    /* Blocked Writing channel */
+    SENDING_CH,                 /* Blocked Sending on channel */
+    LISTENING_CH,               /* Blocked Listning on channel */
     KERNEL,                     /* Process 0 is Kernel (convention) */
 };
 
@@ -48,6 +48,23 @@ typedef struct {
     void * global_base;
 } mem_conf;
 
+typedef struct {
+    int target_pid;
+    uint64_t data1;
+    uint64_t data2;
+    bool share_buff;
+    uint64_t receive_data;
+    bool acknowledged;
+} sender_data;
+
+typedef struct {
+    uint64_t receive_data;
+    int source_pid;
+    int return_code;
+    uint64_t data1;
+    uint64_t data2;
+} receiver_data;
+
 /* x[0] : addr, x[i] : data_i */
 /* Data1 and data2 will be written at addr in the process memory */
 /* (One stp instruction) */
@@ -73,7 +90,8 @@ typedef struct proc_descriptor {
     struct proc_descriptor * sibling;
 
     write_back write_back;
-    /* TODO : channels */
+    sender_data sender_data;
+    receiver_data receiver_data;
 } proc_descriptor;
 
 typedef struct{

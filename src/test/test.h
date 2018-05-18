@@ -22,4 +22,5 @@ void fork_test2();
 void kernel_timer_test();
 void proc_timer_test();
 void timer_test_to_call_at_c_sync_handler();
+void chan_test1();
 #endif

@@ -27,7 +27,7 @@ proc_descriptor new_proc_descriptor(int pid, int parent_pid, int priority, void 
     proc.priority             = priority;
     proc.state                = RUNNABLE;
     proc.sched_conf.time_left = QUANTUM;
-    proc.sched_conf.preempt   = true;
+    proc.sched_conf.preempt   = false; /* Temp */
     proc.initialized          = false;
     proc.saved_context.pstate = new_el0_pstate();
     proc.saved_context.sp     = STACK_BEGIN;
@@ -39,6 +39,7 @@ proc_descriptor new_proc_descriptor(int pid, int parent_pid, int priority, void 
     proc.write_back.x[0]      = 0;
     /* We kindly initialize the registers to zero */
     for(int i = 0; i < N_REG; i++) proc.saved_context.registers[i] = 0;
+    proc.sender_data.acknowledged = true;
     return proc;
 }
 
@@ -48,7 +49,7 @@ void make_child_proc_descriptor(proc_descriptor * child, proc_descriptor * paren
     child->priority             = priority;
     child->state                = RUNNABLE;
     child->sched_conf.time_left = QUANTUM;
-    child->sched_conf.preempt   = true;
+    child->sched_conf.preempt   = false;
     child->initialized          = false;
     child->saved_context.pstate = parent->saved_context.pstate;
     child->saved_context.sp     = parent->saved_context.sp;
@@ -60,6 +61,7 @@ void make_child_proc_descriptor(proc_descriptor * child, proc_descriptor * paren
     child->saved_context.registers[0] = 0;
     for(int i = 1; i < N_REG; i++)
         child->saved_context.registers[i] = parent->saved_context.registers[i];
+    child->sender_data.acknowledged = parent->sender_data.acknowledged;
     return;
 }
 
@@ -323,8 +325,83 @@ void syscall_exit(){
     if(parent->state == WAITING)
         handle_zombie_child(parent, proc);
     else
-        parent->state = ZOMBIE;
+        proc->state = ZOMBIE;
     return;
+}
+
+void handle_channel_connection(proc_descriptor * sender, proc_descriptor * receiver){
+    proc_verbose("Handling channel connection:\r\nSender: %d\r\nReceiver: %d\r\n",
+                 sender->pid, receiver->pid);
+    /* Needs acknowledge */
+    sender->sender_data.acknowledged = false;
+    /* If addr == null won't be written */
+    receiver->write_back.x[0] = receiver->receiver_data.receive_data;
+    receiver->write_back.x[1] = sender->sender_data.data1;
+    receiver->write_back.x[2] = sender->sender_data.data2;
+    receiver->receiver_data.source_pid = sender->pid;
+    /* Not implemented yet */
+    assert(!sender->sender_data.share_buff);
+    receiver->saved_context.registers[0] = sender->pid;
+    receiver->state = RUNNABLE;
+}
+
+void syscall_send(){
+    proc_descriptor * proc = &sys_state.procs[sys_state.last_pid];
+    proc_verbose("Syscall send for process %d\r\n", proc->pid);
+    int target_pid = proc->saved_context.registers[0];
+    if(target_pid < 0 || target_pid >= MAX_PROC){
+        proc->err.no = INVALID_PID;
+        proc->saved_context.registers[0] = -1;
+        return;
+    }
+    else if(sys_state.procs[target_pid].state != LISTENING_CH){
+        proc->err.no = TARGET_NOT_LISTENING;
+        proc->saved_context.registers[0] = -1;
+        return;
+    }
+    proc->sender_data.target_pid          =        proc->saved_context.registers[0];
+    proc->sender_data.data1        =        proc->saved_context.registers[1];
+    proc->sender_data.data2        =        proc->saved_context.registers[2];
+    proc->sender_data.receive_data =        proc->saved_context.registers[3];
+    proc->sender_data.share_buff  = (bool) proc->saved_context.registers[4];
+    proc->state = SENDING_CH;
+    handle_channel_connection(proc, &sys_state.procs[target_pid]);
+}
+
+void syscall_receive(){
+    proc_descriptor * proc = &sys_state.procs[sys_state.last_pid];
+    proc_verbose("Syscall receive for process %d\r\n", proc->pid);
+    proc->receiver_data.receive_data = proc->saved_context.registers[0];
+    proc->state = LISTENING_CH;
+}
+
+void handle_channel_ack(proc_descriptor * receiver, proc_descriptor * sender){
+    proc_verbose("Handling channel ack:\r\nSender: %d\r\nReceiver: %d\r\n",
+                 sender->pid, receiver->pid);
+    if(sender->sender_data.acknowledged){
+        /* Error : nothing to acknowledge */
+        receiver->err.no = SOURCE_ALREADY_ACKNOWLEDGED;
+        receiver->saved_context.registers[0] = -1;
+        return;
+    }
+    assert(sender->sender_data.target_pid == receiver->pid);
+    /* Everything went well */
+    receiver->saved_context.registers[0] = 0;
+    sender->write_back.x[0] = sender->sender_data.receive_data;
+    sender->write_back.x[1] = receiver->receiver_data.data1;
+    sender->write_back.x[2] = receiver->receiver_data.data2;
+    sender->saved_context.registers[0] = receiver->receiver_data.return_code;
+    assert(!sender->sender_data.share_buff);
+    sender->state = RUNNABLE;
+}
+
+void syscall_acknowledge(){
+    proc_descriptor * proc = &sys_state.procs[sys_state.last_pid];
+    proc_verbose("Syscall acknowledge for process %d\r\n", proc->pid);
+    proc->receiver_data.return_code = proc->saved_context.registers[0];
+    proc->receiver_data.data1       = proc->saved_context.registers[1];
+    proc->receiver_data.data2       = proc->saved_context.registers[2];
+    handle_channel_ack(proc, &sys_state.procs[proc->receiver_data.source_pid]);
 }
 
 
@@ -354,6 +431,21 @@ void c_el1_svc_aarch64_handler(uint64_t esr_el1){
         /* Wait */
         proc_verbose("Syscall code 2 : Wait\r\n");
         syscall_wait();
+        break;
+    case 3:
+        /* Send */
+        proc_verbose("Syscall code 3 : Send\r\n");
+        syscall_send();
+        break;
+    case 4:
+        /* Receive */
+        proc_verbose("Syscall code 4 : Receive\r\n");
+        syscall_receive();
+        break;
+    case 5:
+        /* Acknowledge */
+        proc_verbose("Syscall code 5 : Acknowledge\r\n");
+        syscall_acknowledge();
         break;
     case 100:
         /* Halt syscall (halt cannot be executed at EL0) */
@@ -398,6 +490,10 @@ int get_parent_pid(int pid){
 __attribute__((__noreturn__))
 void schedule(){
     proc_verbose("Entering schedule after execution of proc %d\r\n", sys_state.last_pid);
-    sys_state.procs[sys_state.last_pid].sched_conf.time_left = QUANTUM;
-    exec_proc(sys_state.last_pid);
+    /* sys_state.procs[sys_state.last_pid].sched_conf.time_left = QUANTUM; */
+    /* exec_proc(sys_state.last_pid); */
+    if(sys_state.procs[1].state == RUNNABLE) exec_proc(1);
+    if(sys_state.procs[2].state == RUNNABLE) exec_proc(2);
+    uart_verbose("Halting...\r\n");
+    halt();
 }

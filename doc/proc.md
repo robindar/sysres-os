@@ -60,6 +60,21 @@ Then Stack/Heap
   - Return value : x0 :
     - Child pid on success
     - -1 on failure and errno set accordingly
+- 3 : Send
+  int send(int target_pid, uint64_t data1, uint64_t data2, void * receive_data,  bool share_buff)
+  - Arg :
+    - data1, data2 : data to be transmitted to the receiver
+    - whether or not to share a buffer
+    - address to a 128 bit zone to receive data1, data2
+  - Return value : x0 :
+    - -1 on failure and errno set (non blocking, fails if target is not listening)
+    - return code by receiver o/w
+- 4 : Receive
+  int receive(void * receive_data)
+  - Arg : address to a 128 bit zone to receive data1, data2
+  - Return value : sender pid
+-5 : Acknowledge
+   int acknowledge(int return_status, uint64_t data1, uint64_t data2)
 
 
 

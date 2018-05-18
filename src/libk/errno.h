@@ -30,6 +30,9 @@ typedef enum {
     MAX_PROC_REACHED,
     TOO_HIGH_CHILD_PRIORITY,
     NO_CHILD,
+    INVALID_PID,
+    TARGET_NOT_LISTENING,
+    SOURCE_ALREADY_ACKNOWLEDGED,
 } errno_t;
 
 typedef uint64_t errdata_t;
