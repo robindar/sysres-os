@@ -1,5 +1,6 @@
 #include "misc.h"
 #include "string.h"
+#include "../memory/alloc.h"
 
 int memcmp (const void * pa, const void * pb, size_t size) {
     const unsigned char *a = (const unsigned char *) pa;
@@ -48,4 +49,24 @@ char * strerror (int errno) {
         default:
           return "Undefined ERRNO";
     }
+}
+
+char * strcat(const char * str1, const char * str2) {
+    size_t len1 = strlen(str1);
+    size_t len2 = strlen(str2);
+    char * cat = kmalloc( (len1 + len2 + 1) * sizeof(char) );
+    memcpy(cat, str1, len1);
+    memcpy(cat + len1, str2, len2 + 1);
+    return cat;
+}
+
+char * filename_join(const char * str1, const char * str2) {
+    size_t len1 = strlen(str1);
+    size_t len2 = strlen(str2);
+    char * cat = kmalloc( (len1 + len2 + 2) * sizeof(char) );
+    memcpy(cat, str1, len1);
+    memcpy(cat + len1 + 1, str2, len2 + 1);
+    cat[len1] = '/';
+    return cat;
+
 }
