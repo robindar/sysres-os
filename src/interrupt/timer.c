@@ -59,7 +59,6 @@ void init_timer_irq(){
 }
 
 void start_countdown(uint32_t countdown){
-    #ifdef NO_TIMER
     #ifndef HARDWARE
     uart_error("WARNING : you are launching a timer on Qemu but it does not work\r\n");
     #endif
@@ -76,7 +75,6 @@ void start_countdown(uint32_t countdown){
     #endif
     AT32(TIMER_CTRL) |=  (1 << 1) | (1 << 7) | (1 << 5);
     return;
-    #endif
 }
 
 int is_timer_irq(){
@@ -105,7 +103,6 @@ void clear_ack_timer_irq(){
 /* It tries to take care of errors */
 /*(timer expiring during switchs and undetected, timer too low for the switch) */
 void restart_timer(){
-    #ifdef NO_TIMER
     if(!timer_on) return;
     #ifdef PROC_VERBOSE
     uart_verbose("Restarting timer\r\n");
@@ -116,7 +113,6 @@ void restart_timer(){
        || is_countdown_finished()) AT32(TIMER_LOAD) = EPSILON;
     AT32(TIMER_CTRL) |=  (1 << 1) | (1 << 7) | (1 << 5);
     return;
-    #endif
 }
 
 void print_timer_status(){

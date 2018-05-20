@@ -278,6 +278,8 @@ int exec_proc(int pid){
 /**** PROCESS UTILITY****/
 /* Returns -1 if no slot available */
 int find_free_proc(){
+    proc_verbose("Finding free proc\r\n");
+    uart_verbose("state of 2: %d\r\n", sys_state.procs[2].state);
     for(int i = 2; i < MAX_PROC; i++)
         if(sys_state.procs[i].state == FREE) return i;
     return -1;

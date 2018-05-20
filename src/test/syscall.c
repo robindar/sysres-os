@@ -73,7 +73,7 @@ void fork_test2(){
     }
 }
 void fork_test2bis(){
-    uart_verbose("Beginning fork test 2\r\n");
+    BEGIN_TEST();
     int ret = fork(14);
     uart_verbose("Return value of fork : %d\r\n");
     assert(ret != -1);
@@ -90,7 +90,7 @@ void fork_test2bis(){
         assert(child_pid     == ret);
         assert(ret_data.no   == 42);
         assert(ret_data.data == 43);
-        uart_verbose("Done fork test 2\r\n");
+        END_TEST();
         return;
     }
 }
@@ -130,9 +130,10 @@ void chan_test1(){
         assert(recv.data1 == 42);
         assert(recv.data2 == (uint64_t)-1);
         int ret = acknowledge(54, ack, strsize(ack));
+        (void) wait(NULL);
         assert(ret == 0);
-        exit(0, 0);
     }
+    END_TEST();
 }
 
 void chan_test2(){
@@ -166,12 +167,15 @@ void chan_test2(){
         assert(recv.data1 == 5);
         assert(recv.data2 == 6);
         int ret = acknowledge(54, 0, strsize(ack));
+        (void) wait(NULL);
         assert(ret == 0);
-        exit(0, 0);
+        END_TEST();
     }
 }
 
+/* TODO: this fails */
 void fork_test3(){
+    BEGIN_TEST();
     int ret = fork(14);
     static int i = 0;
     uart_verbose("Return value of fork : %d\r\n");
@@ -181,14 +185,18 @@ void fork_test3(){
         uart_info("Child process running\r\n");
         uart_verbose("i: %d\r\n", i);
         i = 1;
+        exit(0,0);
     }
     else{
         /* Parent */
         uart_info("Parent process running\r\n");
+        /* if child executes before, assert(i == 0) fails */
         uart_verbose("i: %d\r\n");
         i = 1;
+        (void) wait(NULL);
     }
-    exit(0,0);
+    END_TEST();
+    return;
 }
 
 void fork_test4(){
@@ -216,6 +224,7 @@ void fork_test4(){
     uart_verbose("Done fork test 4\r\n");
 }
 
+/* fork_test4bis and sched_test1 fail but see doc/bugs.txt */
 void fork_test4bis(){
     BEGIN_TEST();
     int n = 10;
