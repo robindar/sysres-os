@@ -78,3 +78,14 @@ void malloc_test() {
     kfree(array);
     uart_debug("Done testing malloc\r\n");
 }
+
+void random_test(){
+    for(int i = 0; i < 1000; i++){
+        uart_printf("-- %d ", random(10000));
+    }
+    unsigned int law[10];
+    for(int i = 0; i < 10; i++) law[i] = i;
+    for(int i = 0; i < 10; i++){
+        uart_debug("Rand according to law between 0 and 10: %d\r\n", random_law(law, 10));;
+    }
+}

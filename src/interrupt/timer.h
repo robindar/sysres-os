@@ -15,5 +15,7 @@ int is_countdown_finished();
 void clear_ack_timer_irq();
 void print_timer_status();
 uint32_t get_curr_timer_value();
+uint64_t random(uint64_t bound);
+uint64_t random_law(unsigned int * law, int n);
 
 #endif

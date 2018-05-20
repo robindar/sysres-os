@@ -9,6 +9,9 @@
 #include "../memory/mmu.h"
 #include "../libk/sys.h"
 
+#define BEGIN_TEST() uart_verbose("Beginning %s\r\n", __func__);
+#define END_TEST()   uart_verbose("Done %s\r\n",      __func__);
+
 void print_formatting_tests();
 void debug_test();
 void syscall_test();
@@ -19,9 +22,15 @@ void free_test();
 void id_syscall_test();
 void fork_test1();
 void fork_test2();
+void fork_test2bis();
 void kernel_timer_test();
 void proc_timer_test();
 void timer_test_to_call_at_c_sync_handler();
 void chan_test1();
 void chan_test2();
+void random_test();
+void fork_test3();
+void sched_test1();
+void fork_test4();
+void fork_test4bis();
 #endif

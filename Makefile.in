@@ -20,6 +20,7 @@ SFLAGS += -mcpu=$(MCPU)  -ffreestanding
 CFLAGS += $(LOG_ARG)
 CFLAGS += -mcpu=$(MCPU)  -ffreestanding -std=gnu99 -O$(OPT) -Wall -Wextra -nostdlib -g
 ASFLAGS += -g
+LDFLAGS +=
 
 c_src = $(shell find src -type f -name "*.c")
 c_obj = $(subst src/,obj/,$(c_src:.c=.o))
@@ -45,7 +46,7 @@ obj/%.o: src/%.S
 
 bin/$(FILENAME).elf: src/linker.ld $(c_obj) $(s_obj) $(S_obj)
 	@:$(call check-defined,ARMTOOLCHAIN,path to ARM toolchain)
-	$(ARMTOOLCHAIN)-ld -T src/linker.ld $(c_obj) $(s_obj) $(S_obj) -o bin/$(FILENAME).elf
+	$(ARMTOOLCHAIN)-ld $(LDFLAGS) -T src/linker.ld $(c_obj) $(s_obj) $(S_obj) -o bin/$(FILENAME).elf
 
 bin/$(FILENAME).img: bin/$(FILENAME).elf
 	@:$(call check-defined,ARMTOOLCHAIN,path to ARM toolchain)
@@ -64,7 +65,7 @@ stub:
 
 asm_dump: bin/$(FILENAME).elf
 	@:$(call check-defined,ARMTOOLCHAIN,path to ARM toolchain)
-	$(ARMTOOLCHAIN)-objdump -D -marm bin/$(FILENAME).elf
+	$(ARMTOOLCHAIN)-objdump -D -marm bin/$(FILENAME).elf -S
 
 deploy: CFLAGSADD = -DHARDWARE
 deploy: clean bin/$(FILENAME).img

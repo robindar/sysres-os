@@ -26,7 +26,7 @@ proc_descriptor new_proc_descriptor(int pid, int parent_pid, int priority, void 
     proc.pid                  = pid;
     proc.parent_pid           = parent_pid;
     proc.priority             = priority;
-    proc.state                = RUNNABLE;
+    proc.state                = FREE;
     proc.sched_conf.time_left = QUANTUM;
     proc.sched_conf.preempt   = false; /* Temp */
     proc.initialized          = false;
@@ -35,7 +35,6 @@ proc_descriptor new_proc_descriptor(int pid, int parent_pid, int priority, void 
     proc.saved_context.pc     = (uint64_t) p;
     proc.err.no               = OK;
     proc.err.data             = 0;
-    proc.sibling              = NULL;
     proc.child                = NULL;
     proc.sender_data.acknowledged = true;
     proc.buffer.write_addr        = 0;
@@ -49,18 +48,11 @@ void make_child_proc_descriptor(proc_descriptor * child, proc_descriptor * paren
     /* Redundant but to make sure everything is initilized at it should */
     *child = new_proc_descriptor(pid, parent->pid, priority,
                                  (void (*)()) parent->saved_context.pc);
-    child->pid                  = pid;
-    child->parent_pid           = parent->pid;
-    child->priority             = priority;
-    child->state                = RUNNABLE;
-    child->sched_conf.time_left = QUANTUM;
     child->sched_conf.preempt   = parent->sched_conf.preempt;
-    child->initialized          = false;
     child->saved_context.pstate = parent->saved_context.pstate;
     child->saved_context.sp     = parent->saved_context.sp;
     child->saved_context.pc     = parent->saved_context.pc;
     child->err                  = parent->err;
-    child->sibling              = parent->child;
     /* Ack are still for the parent */
     child->sender_data.acknowledged = true;
     for(int i = 1; i < N_REG; i++)
@@ -86,7 +78,7 @@ void print_proc_descriptor(const proc_descriptor * proc){
         "Err.no : %d\r\n",
         "Err.descr : %d\r\n",
         "Preemptible : %d\r\n",
-        "Time left : %ds\r\n"
+        "Time left : %ds\r\n",
         proc->pid, proc->parent_pid, proc->priority,
         proc->state, proc->initialized ? "Yes" : "No",
         proc->err.no, proc->err.data,
@@ -122,6 +114,25 @@ void print_proc_descriptor(const proc_descriptor * proc){
     #endif
 }
 
+void print_prio_lists(){
+    proc_descriptor * proc;
+    uart_verbose("%d runnable processes\r\n", sys_state.n_runnable_procs);
+    for(int prio = 0; prio <= MAX_PRIO; prio ++){
+        if(sys_state.prio_proc_n[prio] > 0)
+            uart_verbose("%d processes of priority %d: ", sys_state.prio_proc_n[prio], prio);
+        proc = sys_state.prio_proc[prio];
+        if(proc != NULL){
+            do {
+                assert(proc->priority == prio);
+                assert(proc->state == RUNNABLE);
+                uart_printf("%d, ", proc->pid);
+                proc = proc->next_same_prio;
+            } while(proc != sys_state.prio_proc[prio]);
+            uart_printf("\r\n");
+        }
+    }
+}
+
 /* Init the process management system */
 void init_proc(){
     uart_info("Beginning proc initialization\r\n");
@@ -131,13 +142,14 @@ void init_proc(){
     for(int i = 0; i < MAX_PROC; i++){
         sys_state.procs[i].state = FREE;
     }
-    sys_state.procs[0].state = KERNEL;
+    change_state(&sys_state.procs[0], KERNEL);
     /* Backup TTBR0_EL1 for kernel */
     uint64_t ttbr0_el1;
     asm volatile("mrs %0, TTBR0_EL1" : "=r"(ttbr0_el1));
     sys_state.procs[0].mem_conf.ttbr0_el1 = ttbr0_el1;
     /* Create init process (PID 1) */
-    sys_state.procs[1] = new_proc_descriptor(1, 0, 0, main_init);
+    sys_state.procs[1] = new_proc_descriptor(1, 1, 14, main_init);
+    change_state(&sys_state.procs[1],RUNNABLE);
     /* Initialize init proc */
     set_up_memory_new_proc(&sys_state.procs[1]);
     save_alloc_conf(&sys_state.procs[0]);
@@ -271,6 +283,58 @@ int find_free_proc(){
     return -1;
 }
 
+void change_state(proc_descriptor * proc, enum proc_state new_state){
+    int prio = proc->priority;
+    if(proc->state == RUNNABLE && new_state != RUNNABLE){
+        proc_descriptor * next = proc->next_same_prio;
+        proc_descriptor * prev = proc->prev_same_prio;
+        if(sys_state.prio_proc[prio] == proc) sys_state.prio_proc[prio] = next == proc ? NULL : next;
+        prev->next_same_prio = next;
+        next->prev_same_prio = prev;
+        sys_state.n_runnable_procs --;
+        sys_state.prio_proc_n[prio] --;
+    }
+    else if(proc->state != RUNNABLE && new_state == RUNNABLE){
+        if(sys_state.prio_proc[prio] == NULL)
+        {
+            proc->next_same_prio = proc;
+            proc->prev_same_prio = proc;
+        }
+        else {
+            proc->next_same_prio = sys_state.prio_proc[prio];
+            proc->prev_same_prio = sys_state.prio_proc[prio]->prev_same_prio;
+            sys_state.prio_proc[prio]->prev_same_prio = proc;
+            proc->prev_same_prio->next_same_prio = proc;
+        }
+        sys_state.prio_proc[prio] = proc;
+        sys_state.n_runnable_procs ++;
+        sys_state.prio_proc_n[prio] ++;
+    }
+    proc->state = new_state;
+}
+
+void add_child(proc_descriptor * parent, proc_descriptor * child){
+    if(parent->child == NULL){
+        child->next_sibling = child;
+        child->prev_sibling = child;
+    }
+    else {
+        child->next_sibling = parent->child;
+        child->prev_sibling = parent->child->prev_sibling;
+        parent->child->prev_sibling = child;
+        child->prev_sibling->next_sibling = child;
+    }
+    parent->child = child;
+    return;
+}
+
+void remove_child(proc_descriptor * parent, proc_descriptor * child){
+    child->prev_sibling->next_sibling = child->next_sibling;
+    child->next_sibling->prev_sibling = child->prev_sibling;
+    if(parent->child == child)
+        parent->child = child == child->next_sibling ? NULL : child->next_sibling;
+    return;
+}
 
 
 /**** SYSCALLS ****/
@@ -293,7 +357,8 @@ void syscall_fork(){
     proc_descriptor * child = &sys_state.procs[child_pid];
     make_child_proc_descriptor(child, parent, child_pid, priority);
     child->saved_context.registers[0] = 0;
-    parent->child = child;
+    add_child(parent, child);
+    change_state(child, RUNNABLE);
     /* Initializing MMU with copy and write */
     set_up_memory_new_proc(child);
     child->initialized = true;
@@ -316,8 +381,9 @@ void handle_zombie_child(proc_descriptor * parent, proc_descriptor * child){
         memmove(parent->buffer.buff, &child->err, sizeof(err_t));
         parent->buffer.used_size = sizeof(err_t);
     }
-    child->state = FREE;
-    parent->state = RUNNABLE;
+    remove_child(parent, child);
+    change_state(child, FREE);
+    change_state(parent, RUNNABLE);
     return;
 }
 
@@ -332,13 +398,15 @@ void syscall_wait(){
         return;
     }
     proc_descriptor * child = parent->child;
-    while(child->state != ZOMBIE && child->sibling != NULL)
-        child = child->sibling;
+    /* here child != NULL */
+    do
+        child = child->next_sibling;
+    while(child->state != ZOMBIE && child->next_sibling != parent->child);
     if(child->state == ZOMBIE)
         handle_zombie_child(parent, child);
     else
         /* No zombie child */
-        parent->state = WAITING;
+        change_state(parent, WAITING);
     return;
 }
 
@@ -348,15 +416,17 @@ void syscall_exit(){
     proc->err.no   = proc->saved_context.registers[0];
     proc->err.data = proc->saved_context.registers[1];
     proc_descriptor * child = proc->child;
-    while(child != NULL){
-        child->parent_pid = 1;
-        child = child->sibling;
+    if(child != NULL){
+        do {
+            child->parent_pid = 1;
+            child = child->next_sibling;
+        } while(child != proc->child);
     }
     proc_descriptor * parent = &sys_state.procs[proc->parent_pid];
     if(parent->state == WAITING)
         handle_zombie_child(parent, proc);
     else
-        proc->state = ZOMBIE;
+        change_state(proc, ZOMBIE);
     return;
 }
 
@@ -382,8 +452,8 @@ void handle_channel_connection(proc_descriptor * sender, proc_descriptor * recei
     sender->buffer.used_size = 0;
     receiver->receiver_data.source_pid = sender->pid;
     receiver->saved_context.registers[0] = sender->pid;
-    sender->state = SENDING_CH;
-    receiver->state = RUNNABLE;
+    change_state(sender, SENDING_CH);
+    change_state(receiver, RUNNABLE);
     return;
 }
 
@@ -424,7 +494,7 @@ void syscall_receive(){
     proc_verbose("Syscall receive for process %d\r\n", proc->pid);
     proc->receiver_data.receive_data = proc->saved_context.registers[0];
     proc->receiver_data.receive_size = proc->saved_context.registers[1];
-    proc->state = LISTENING_CH;
+    change_state(proc, LISTENING_CH);
     int i;
     for(i = 0; i < MAX_PROC; i++){
         if(sys_state.procs[i].state == WAIT_LISTENER &&
@@ -458,7 +528,7 @@ void handle_channel_ack(proc_descriptor * receiver, proc_descriptor * sender){
     sender->buffer.write_addr = sender->sender_data.ack_data;
     receiver->buffer.used_size = 0;
     sender->saved_context.registers[0] = receiver->receiver_data.return_code;
-    sender->state = RUNNABLE;
+    change_state(sender, RUNNABLE);
     return;
 }
 
@@ -560,12 +630,37 @@ int get_parent_pid(int pid){
 
 /****  SCHEDULER  ****/
 __attribute__((__noreturn__))
+void run_priority(int prio){
+    proc_descriptor * proc = sys_state.prio_proc[prio];
+    sys_state.prio_proc[prio] = proc->next_same_prio;
+    if(proc->sched_conf.time_left == 0)
+        proc->sched_conf.time_left = QUANTUM;
+    proc_verbose("Running prio %d process %d\r\n", prio, proc->pid);
+    run_process(proc);
+}
+
+__attribute__((__noreturn__))
 void schedule(){
     proc_verbose("Entering schedule after execution of proc %d\r\n", sys_state.last_pid);
-    /* sys_state.procs[sys_state.last_pid].sched_conf.time_left = QUANTUM; */
-    /* exec_proc(sys_state.last_pid); */
-    if(sys_state.procs[1].state == RUNNABLE) exec_proc(1);
-    if(sys_state.procs[2].state == RUNNABLE) exec_proc(2);
-    uart_verbose("Halting...\r\n");
-    halt();
+    #ifdef PROC_VERBOSE
+    print_prio_lists();
+    #endif
+    if(sys_state.n_runnable_procs == 0){
+        uart_info("No runnable processes\r\nHalting...\r\n");
+        halt();
+    }
+    if(sys_state.prio_proc_n[MAX_PRIO] > 0)
+        run_priority(MAX_PRIO);
+    else if(sys_state.n_runnable_procs == sys_state.prio_proc_n[0])
+        /* Only priorirty zero procs */
+        run_priority(0);
+    else{
+        unsigned int proba[MAX_PRIO];
+        proba[0] = 0;
+        for(int i = 1; i < MAX_PRIO; i++){
+            proba[i] =  sys_state.prio_proc_n[i] > 0 ? i * i + sys_state.prio_proc_n[i] : 0;
+        }
+        int prio = random_law(proba, MAX_PRIO);
+        run_priority(prio);
+    }
 }

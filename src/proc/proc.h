@@ -14,7 +14,8 @@
 /* see doc/mmu.md for why only 32 */
 #define MAX_PROC   32
 #define N_REG      31            /* x0-x30 */
-#define BUFF_SIZE 256
+#define BUFF_SIZE 512
+#define MAX_PRIO   15
 
 enum proc_state {
     FREE = 0,                   /* Unused proc slot */
@@ -24,7 +25,7 @@ enum proc_state {
     SENDING_CH,                 /* Blocked Sending on channel */
     LISTENING_CH,               /* Blocked Listning on channel */
     WAIT_LISTENER,              /* Blocked waiting listener */
-    KERNEL,                     /* Process 0 is Kernel (convention) */
+    KERNEL,                     /* Kernel */
 };
 
 typedef struct {
@@ -84,19 +85,27 @@ typedef struct proc_descriptor {
     mem_conf mem_conf;
     err_t err;
     /* FILO struct, NULL when empty */
-    /* TODO : change to doubly linked list ? */
+    /* non cyclical simply linked list */
     struct proc_descriptor * child;
-    struct proc_descriptor * sibling;
+    struct proc_descriptor * next_sibling;
+    struct proc_descriptor * prev_sibling;
 
     buffer buffer;
     sender_data sender_data;
     receiver_data receiver_data;
+
+    /* cyclical simply linked list */
+    struct proc_descriptor * next_same_prio;
+    struct proc_descriptor * prev_same_prio;
 } proc_descriptor;
 
 typedef struct{
     int curr_pid;
     int last_pid;               /* Only used if curr_pid == 0 */
     proc_descriptor procs[MAX_PROC];
+    unsigned int prio_proc_n[MAX_PRIO + 1]; /* nb of runnable procs in a given prio*/
+    unsigned int n_runnable_procs;
+    proc_descriptor * prio_proc[MAX_PRIO + 1];
 } system_state;
 
 void init_proc();
@@ -108,6 +117,7 @@ void save_alloc_conf(proc_descriptor * proc);
 uint64_t get_lvl2_address_from_sys_state(int pid);
 int get_curr_pid();
 int get_parent_pid(int pid);
+void change_state(proc_descriptor * proc, enum proc_state new_state);
 
 __attribute__((__noreturn__))
 void schedule();
