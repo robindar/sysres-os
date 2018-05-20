@@ -89,3 +89,18 @@ void random_test(){
         uart_debug("Rand according to law between 0 and 10: %d\r\n", random_law(law, 10));;
     }
 }
+
+void shutdown_test(){
+    BEGIN_TEST();
+    int ret = fork(14);
+    assert(ret != -1);
+    if(ret == 0){
+        /* Child */
+        int code = 0;
+        ret = send(1, &code, sizeof(int), NULL, 0, true);
+        assert(ret == -1);
+        shutdown();
+    }
+    END_TEST();
+    return;
+}

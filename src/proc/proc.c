@@ -22,20 +22,21 @@ uint64_t new_el0_pstate(){
 }
 
 proc_descriptor new_proc_descriptor(int pid, int parent_pid, int priority, void (*p)()){
-    proc_descriptor proc      = {0};
-    proc.pid                  = pid;
-    proc.parent_pid           = parent_pid;
-    proc.priority             = priority;
-    proc.state                = FREE;
-    proc.sched_conf.time_left = QUANTUM;
-    proc.sched_conf.preempt   = false; /* Temp */
-    proc.initialized          = false;
-    proc.saved_context.pstate = new_el0_pstate();
-    proc.saved_context.sp     = STACK_BEGIN;
-    proc.saved_context.pc     = (uint64_t) p;
-    proc.err.no               = OK;
-    proc.err.data             = 0;
-    proc.child                = NULL;
+    proc_descriptor proc          = {0};
+    proc.pid                      = pid;
+    proc.parent_pid               = parent_pid;
+    proc.priority                 = priority;
+    proc.state                    = FREE;
+    proc.sched_conf.time_left     = QUANTUM;
+    proc.sched_conf.preempt       = false; /* Temp */
+    proc.initialized              = false;
+    proc.saved_context.pstate     = new_el0_pstate();
+    proc.saved_context.sp         = STACK_BEGIN;
+    proc.saved_context.sctlr_el1  = 0xc00801;
+    proc.saved_context.pc         = (uint64_t) p;
+    proc.err.no                   = OK;
+    proc.err.data                 = 0;
+    proc.child                    = NULL;
     proc.sender_data.acknowledged = true;
     proc.buffer.write_addr        = 0;
     proc.buffer.used_size         = 0;
@@ -135,6 +136,7 @@ void print_prio_lists(){
 
 /* Init the process management system */
 void init_proc(){
+    print_reg(SCTLR_EL1);
     uart_info("Beginning proc initialization\r\n");
     /* SIMD insructions should already be enabled at EL0 (they are enabled in switch_from_EL3_to_EL1)*/
     /* For now we are still at EL1 in kernel mode */
@@ -148,7 +150,9 @@ void init_proc(){
     asm volatile("mrs %0, TTBR0_EL1" : "=r"(ttbr0_el1));
     sys_state.procs[0].mem_conf.ttbr0_el1 = ttbr0_el1;
     /* Create init process (PID 1) */
-    sys_state.procs[1] = new_proc_descriptor(1, 1, 14, main_init);
+    sys_state.procs[1] = new_proc_descriptor(1, 1, 15, main_init);
+    /* Process init has the right to power down the unit */
+    sys_state.procs[1].saved_context.sctlr_el1 |= (1 << 18);
     change_state(&sys_state.procs[1],RUNNABLE);
     /* Initialize init proc */
     set_up_memory_new_proc(&sys_state.procs[1]);
@@ -278,8 +282,6 @@ int exec_proc(int pid){
 /**** PROCESS UTILITY****/
 /* Returns -1 if no slot available */
 int find_free_proc(){
-    proc_verbose("Finding free proc\r\n");
-    uart_verbose("state of 2: %d\r\n", sys_state.procs[2].state);
     for(int i = 2; i < MAX_PROC; i++)
         if(sys_state.procs[i].state == FREE) return i;
     return -1;

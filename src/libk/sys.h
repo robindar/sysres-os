@@ -13,4 +13,5 @@ int wait(err_t * status);
 int send(int target_pid, void * send_data, size_t send_size, void * ack_data, size_t ack_size, bool wait);
 int receive(void * receive_data, size_t receive_size);
 int acknowledge(int return_code, void * ack_data, size_t ack_size);
+void shutdown();
 #endif

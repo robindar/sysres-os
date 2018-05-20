@@ -34,6 +34,8 @@ void switch_to_proc(proc_descriptor * proc){
     proc->initialized = true;
     if(proc->sched_conf.preempt)
         start_countdown(proc->sched_conf.time_left);
+    /* we restore sctrl_el1 here */
+    asm volatile("msr SCTLR_EL1, %0" : : "r"(proc->saved_context.sctlr_el1));
     /* We are using x0-x7 to pass parameters */
     restore_and_run(
         (uint64_t) &(proc->saved_context.registers[N_REG - 1]),

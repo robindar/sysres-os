@@ -33,4 +33,5 @@ void fork_test3();
 void sched_test1();
 void fork_test4();
 void fork_test4bis();
+void shutdown_test();
 #endif

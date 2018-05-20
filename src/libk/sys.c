@@ -82,3 +82,14 @@ int acknowledge(int return_code, void * ack_data, size_t ack_size){
         :"x0", "x1", "x2");
     return (int)ret;
 }
+
+
+/* end of syscalls */
+
+/* misc sys functions */
+
+/* EL0 Only */
+void shutdown(){
+    int code = 1;
+    send(1, &code, sizeof(code), NULL, 0, true);
+}

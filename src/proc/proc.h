@@ -39,6 +39,7 @@ typedef struct {
                                 /* It is provided by ELR after a syscall*/
     uint64_t sp;
     uint64_t pstate;
+    uint64_t sctlr_el1;         /* ARM ARM 2654 */
 } context;
 
 typedef struct {

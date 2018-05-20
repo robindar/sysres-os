@@ -3,13 +3,26 @@
 #include "../libk/sys.h"
 #include "../test/test.h"
 
+void listen_shutdown(){
+    int pid;
+    int code;
+    while(1){
+        pid = receive(&code, sizeof(int));
+        switch(code){
+        case 1:
+            uart_info("System halting at the request of process %d\r\n", pid);
+            halt();
+        default:
+            /* Unknown signal */
+            (void) acknowledge(-1, NULL, 0);
+        }
+    }
+}
 
 
 void main_init(){
     uart_info("Init process running\r\n");
-    chan_test2();
-    chan_test1();
-    uart_info("Halting...\r\n");
-    /* Halt syscall : TODO : do a lovely interface */
-    SYSCALL(100);
+    shutdown_test();
+    listen_shutdown();
 }
+
