@@ -25,5 +25,5 @@ void kernel_main(uint64_t r0, uint64_t r1, uint64_t atags) {
     (void) atags;
     kernel_init();
     /* Start init process */
-    kernel_timer_test();
+    exec_proc(1);
 }

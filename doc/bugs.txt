@@ -1,0 +1,52 @@
+1) Sched_test1 Hardware
+Non_det shceduler but non non-det bug, with or without timers
+1) sched_test1
+   n = 10: 2/3
+   n =  5: 1/2
+[ DEBUG ] Ret addr: b610
+[VERBOSE] Done sched_test1
+[ ERROR ] Sync Exception Error :
+          At level : EL1
+          Case nb :0
+          ELR_EL : 0x8000
+          SPSR_EL : 0x80000000
+          ESR_EL : 0x2000000
+          FAR_EL : 0xda91e77e2d8d5508
+[ INFO  ] ESR_ELn info :
+          Exception Class : 0b0
+          IL : 1
+          Instruction Specific Syndrom : 0x0
+           = 0b0
+[ INFO  ] PSTATE info :
+          Negative condition flag : 0
+          Zero     condition flag : 0
+          Carry    condition flag : 0
+          Overflow condition flag : 0
+          Debug mask              : 0
+          System Error mask       : 0
+          IRQ mask                : 0
+          FIQ mask                : 0
+          Software step           : 0
+          UA0                     : 0
+          Illegal execution state : 0
+          Architecture            : 0
+          Mode field              : EL0
+          Stack Pointer           : 0
+
+
+2) fork_test4 ok but fork_test4bis (ie adding a delay)
+   n = 15 -> no bug in 4 execs
+   n = 10 100%
+
+The bug is situated exaclty after the ret instruction and bfeore executing the next instr in main_init (seen with svc instrs). It seems that we are returning to address 0x8000 (same effect as b 0x8000) and the undef execption is due to the cache clearing instructions (have to be at > EL1). Return address and frame pointer have verified using both GCC's builtins and using uart_simple_put_reg juste before the ret added directly into assembly.
+Now the fun part:
+- if you compile it the standard way with GCC, it doesn't work
+- now compile src/test/syscall.c with GCC to src/test/syscall.s (with the same options), remove the .c, do make weploy and everything works
+
+So the paths
+.c -- GCC --> .s -- AS --> .o != .c -- GCC --> .o
+as seen in the resulting assembly
+
+Last but not least if you uncomment the line     /*uart_debug("FP: %x\r\n", (uint64_t)__builtin_frame_address(0)); */ it works too.
+And it also works if we jump direclty (asm volatile ("b ...")) to the return address.
+Alternatively halt here and everything's fine

@@ -39,7 +39,6 @@
 #define TIMER_PRE_DIV         TIMER_BASE + 0x001C
 #define TIMER_FREE_RUNNING    TIMER_BASE + 0x0020
 
-
 /* Approximate : the value given by the clock */
 /* ie half the syst clock divided by the pre divider + 1 does not match */
 
@@ -51,10 +50,16 @@ void init_timer_irq(){
     AT32(ENABLE_BASIC_IRQ) |= 1;
     asm volatile("msr DAIFSet,#2"); /* Timer are not effective ate EL1 */
     AT32(TIMER_PRE_DIV) = 0x7d; /* default */
+    uint64_t reg;
+    /* Enable access to the physical counter at EL0 */
+    asm volatile("mrs %0, CNTKCTL_EL1":"=r"(reg)::);
+    reg |= 1;
+    asm volatile("msr CNTKCTL_EL1, %0": :"r"(reg):);
     uart_verbose("Done timer and IRQ initiliazation\r\n");
 }
 
 void start_countdown(uint32_t countdown){
+    #ifdef NO_TIMER
     #ifndef HARDWARE
     uart_error("WARNING : you are launching a timer on Qemu but it does not work\r\n");
     #endif
@@ -71,6 +76,7 @@ void start_countdown(uint32_t countdown){
     #endif
     AT32(TIMER_CTRL) |=  (1 << 1) | (1 << 7) | (1 << 5);
     return;
+    #endif
 }
 
 int is_timer_irq(){
@@ -99,6 +105,7 @@ void clear_ack_timer_irq(){
 /* It tries to take care of errors */
 /*(timer expiring during switchs and undetected, timer too low for the switch) */
 void restart_timer(){
+    #ifdef NO_TIMER
     if(!timer_on) return;
     #ifdef PROC_VERBOSE
     uart_verbose("Restarting timer\r\n");
@@ -109,6 +116,7 @@ void restart_timer(){
        || is_countdown_finished()) AT32(TIMER_LOAD) = EPSILON;
     AT32(TIMER_CTRL) |=  (1 << 1) | (1 << 7) | (1 << 5);
     return;
+    #endif
 }
 
 void print_timer_status(){
@@ -123,4 +131,52 @@ void print_timer_status(){
               "TIMER_CTRL.ENABLE_IRQ: %d\r\n",
               is_timer_irq(), is_countdown_finished(), get_curr_timer_value(),
               (daif & (1 << 7)) >> 7, (AT32(TIMER_CTRL) & 5) >> 5, (AT32(TIMER_CTRL) & 7) >> 7);
+}
+
+/* Returns a random number from [0, bound[ */
+uint64_t random(uint64_t bound){
+    uint64_t val;
+    asm("mrs %0, CNTPCT_EL0" : "=r"(val)::);
+    return (val % bound);
+}
+
+#define NON_DETERMINISTIC
+uint64_t random_law(unsigned int * law, int n){
+    #ifdef DETERMINISTIC_MAX
+    /* we assume there is at least one proc */
+    unsigned int max_val = law[0];
+    int max = 0;
+    for(int i = 1; i < n; i++){
+        if(max_val < law[i]){
+            max_val = law[i];
+            max = i;
+        }
+    }
+    return max;
+    #endif
+    #ifdef DETERMINISTIC_MIN
+    /* we assume there is at least one proc */
+    unsigned int min_val = ~((unsigned int)0);
+    int min = 0;
+    for(int i = 0; i < n; i++){
+        if(min_val > law[i] && law[i] > 0){
+            min_val = law[i];
+            min = i;
+        }
+    }
+    return min;
+    #endif
+    #ifdef NON_DETERMINISTIC
+    uint64_t total = 0;
+    for(int i = 0; i < n; i++) total += law[i];
+    uint64_t val = random(total);
+    uint64_t sum = 0;
+    for(int i = 0; i < n; i++){
+        sum += law[i];
+        if(sum > val)
+            return i;
+    }
+    /* Useless */
+    return (n - 1);
+    #endif
 }

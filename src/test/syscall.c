@@ -52,7 +52,29 @@ void fork_test1(){
 
 void fork_test2(){
     uart_verbose("Beginning fork test 2\r\n");
-    int ret = fork(0);
+    int ret = fork(13);
+    uart_verbose("Return value of fork : %d\r\n");
+    assert(ret != -1);
+    if(ret == 0){
+        /* Child */
+        uart_info("Child process running\r\n");
+        exit(42,43);
+    }
+    else{
+        /* Parent */
+        uart_info("Parent process running\r\n");
+        err_t ret_data;
+        int child_pid = wait(&ret_data);
+        assert(child_pid     == ret);
+        assert(ret_data.no   == 42);
+        assert(ret_data.data == 43);
+        uart_verbose("Done fork test 2\r\n");
+        return;
+    }
+}
+void fork_test2bis(){
+    uart_verbose("Beginning fork test 2\r\n");
+    int ret = fork(14);
     uart_verbose("Return value of fork : %d\r\n");
     assert(ret != -1);
     if(ret == 0){
@@ -147,4 +169,115 @@ void chan_test2(){
         assert(ret == 0);
         exit(0, 0);
     }
+}
+
+void fork_test3(){
+    int ret = fork(14);
+    static int i = 0;
+    uart_verbose("Return value of fork : %d\r\n");
+    assert(ret != -1);
+    if(ret == 0){
+        /* Child */
+        uart_info("Child process running\r\n");
+        uart_verbose("i: %d\r\n", i);
+        i = 1;
+    }
+    else{
+        /* Parent */
+        uart_info("Parent process running\r\n");
+        uart_verbose("i: %d\r\n");
+        i = 1;
+    }
+    exit(0,0);
+}
+
+void fork_test4(){
+    uart_verbose("Bgeinning fork test 4");
+    int n = 15;
+    int ret;
+    for(int i = 0; i < n; i++){
+        ret = fork(0);
+        assert(ret != -1);
+        if(ret == 0) break;
+    }
+    if(ret == 0) exit(1,1);
+    if(ret != 0){
+        err_t r;
+        int pid;
+        for(int i = 0; i < n; i++){
+            pid = wait(&r);
+            uart_verbose("Heard from %d\r\n", pid);
+            assert(r.data == 1);
+            assert(r.no   == 1);
+        }
+    }
+    uint64_t return_addr = (uint64_t)__builtin_return_address(0);
+    uart_debug("Ret addr: %x\r\n", return_addr);
+    uart_verbose("Done fork test 4\r\n");
+}
+
+void fork_test4bis(){
+    BEGIN_TEST();
+    int n = 10;
+    int ret;
+    for(int i = 0; i < n; i++){
+        ret = fork(0);
+        assert(ret != -1);
+        if(ret == 0) break;
+    }
+    if(ret == 0) {
+        delay(1 << 20);
+        exit(1,1);
+    }
+    if(ret != 0){
+        err_t r;
+        int pid;
+        for(int i = 0; i < n; i++){
+            pid = wait(&r);
+            uart_verbose("Heard from %d\r\n", pid);
+            assert(r.data == 1);
+            assert(r.no   == 1);
+        }
+    }
+    uart_debug("Ret addr: %x\r\n", (uint64_t)__builtin_return_address(0));
+    /*uart_debug("FP: %x\r\n", (uint64_t)__builtin_frame_address(0)); */
+    END_TEST();
+    return;
+}
+
+void sched_test1(){
+    uart_verbose("Beginning sched_test1\r\n");
+    int ret;
+    int n = 5;
+    for(int i = 0; i < n; i++){
+        ret = fork(13);
+        assert(ret != -1);
+        if(ret == 0) break;
+    }
+    if(ret != 0){
+        for(int i = 0; i < n; i++){
+            ret = fork(12);
+            assert(ret != -1);
+            if(ret == 0) break;
+        }
+    }
+    if(ret != 0){
+        err_t ret_data;
+        int pid;
+        for(int i = 0; i < n; i++){
+            pid = wait(&ret_data);
+            uart_verbose("Heard from child: %d\r\n", pid);
+            assert(pid <= 2*n + 1);
+            assert(ret_data.data == 1);
+            assert(ret_data.no   == 1);
+        }
+    }
+    if(ret == 0){
+        delay(1 << 20);
+        exit(1,1);
+    }
+    uint64_t return_addr = (uint64_t)__builtin_return_address(0);
+    uart_debug("Ret addr: %x\r\n", return_addr);
+    uart_verbose("Done sched_test1\r\n");
+    return;
 }
