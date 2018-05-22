@@ -5,7 +5,7 @@
 #include "../libk/sys.h"
 #include "../libk/errno.h"
 
-#define TESTER_PID 4
+#define TESTER_PID 5
 
 void id_syscall_test(){
     uart_verbose("Entring id syscall test\r\n");

@@ -111,9 +111,9 @@ void data_abort_handler(uint64_t el, uint64_t nb, uint64_t spsr_el, uint64_t elr
 }
 
 void c_sync_handler(uint64_t el, uint64_t nb, uint64_t spsr_el, uint64_t elr_el, uint64_t esr_el, uint64_t far_el) {
-    #ifdef INT_VERBOSE
-    display_error("Sync Exception Error", el, nb, spsr_el, elr_el, esr_el, far_el);
-    #endif
+    /* #ifdef INT_VERBOSE */
+    /* display_error("Sync Exception Error", el, nb, spsr_el, elr_el, esr_el, far_el); */
+    /* #endif */
     /* el indicates exception level */
     uint64_t exception_class = (esr_el & 0xfc000000) >> 26;
     /* See ARm ARM 1878 for EC constants */

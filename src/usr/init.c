@@ -5,6 +5,7 @@
 #include "../proc/proc.h"
 #include "mem_manager.h"
 #include "io.h"
+#include "fs_manager.h"
 
 void listen_shutdown(){
     int pid;
@@ -24,26 +25,15 @@ void listen_shutdown(){
     }
 }
 
-void start_mem_manager_process(){
+void start_manager_process(void (*f) (), int desired_pid){
     int ret = fork(15);
     assert(ret != -1);
     if(ret == 0)
-        main_mem_manager();
+        f();
     /* Make sur it has pid 2 (ie don't create processes before calling this !)*/
-    assert(ret == MEM_MANAGER_PID);
+    assert(ret == desired_pid);
     return;
 }
-
-void start_io_manager_process(){
-    int ret = fork(15);
-    assert(ret != -1);
-    if(ret == 0)
-        main_io_manager();
-    /* Make sur it has pid 3 (ie don't create processes before calling this !)*/
-    assert(ret == IO_MANAGER_PID);
-    return;
-}
-
 
 void start_test_process(){
     int ret = fork(15);
@@ -68,8 +58,9 @@ void start_test_process(){
 
 void main_init(){
     uart_info("Init process running\r\n");
-    start_mem_manager_process();
-    start_io_manager_process();
+    start_manager_process(main_mem_manager, MEM_MANAGER_PID);
+    start_manager_process(main_io_manager, IO_MANAGER_PID);
+    start_manager_process(main_fs_manager, FS_MANAGER_PID);
     start_test_process();
     listen_shutdown();
 }

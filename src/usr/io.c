@@ -51,7 +51,7 @@ void main_io_manager(){
             uart_error(
                 "IO processs reached over unknown request"
                 "by %d\r\n", pid);
-            (void) acknowledge(-1, NULL, 0);
+            status = acknowledge(-1, NULL, 0);
             break;
         }
         assert(status == 0);

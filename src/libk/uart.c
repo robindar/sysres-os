@@ -3,7 +3,7 @@
 #include "debug.h"
 #include "string.h"
 
-#define IO_BUFF_SIZE 256
+#define IO_BUFF_SIZE 1024
 #ifdef HARDWARE
 /*
  * The following code was originally written
