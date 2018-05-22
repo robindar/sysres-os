@@ -1,6 +1,7 @@
 #include "test.h"
 #include "../libk/debug.h"
 #include "../libk/uart.h"
+#include "../libk/io_lib.h"
 
 void print_formatting_tests() {
     uart_debug("Performing printf formatting tests:\r\n");
@@ -111,5 +112,32 @@ void test_priviledged_get_string(){
         uart_printf(":");
         uart_get_string(buff, 256);
         uart_printf("Got: %s\r\n", buff);
+    }
+}
+
+void io_simple_test(){
+    BEGIN_TEST();
+    io_putc('@');
+    END_TEST();
+}
+
+void print_io_formatting_tests() {
+    io_printf("Performing printf formatting tests:\r\n");
+    io_printf("\tShould output \"hey\": %s\r\n", "hey");
+    io_printf("\tShould output \"2a\": %x\r\n", 42);
+    io_printf("\tShould output \"101010\": %b\r\n", 42);
+    io_printf("\tShould output \"52\": %o\r\n", 42);
+    io_printf("\tShould output \"-42\": %d\r\n", -42);
+    io_printf("\tShould output 2 ** 32 + 1: %b\r\n", (((uint64_t) 1) << 32) + 1);
+    io_printf("\tShould output \"100000001\": %x\r\n", (((uint64_t) 1) << 32) + 1);
+    io_printf("Done testing printf formatting\r\n");
+}
+
+void test_io_get_string(){
+    char buff[256];
+    while(1){
+        io_printf(":");
+        io_get_string(buff, 256);
+        io_printf("Got: %s\r\n", buff);
     }
 }

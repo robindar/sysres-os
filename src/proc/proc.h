@@ -20,6 +20,7 @@
 #define KERNEL_PID       0
 #define INIT_PID         1
 #define MEM_MANAGER_PID  2
+#define IO_MANAGER_PID   3
 
 enum proc_state {
     FREE = 0,                   /* Unused proc slot */

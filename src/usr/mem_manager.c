@@ -5,6 +5,7 @@
 
 __attribute__((__noreturn__))
 void main_mem_manager(){
+    assert(get_curr_pid() == MEM_MANAGER_PID);
     int pid, status;
     mem_request_t request = {0};
     while(1){
@@ -19,6 +20,7 @@ void main_mem_manager(){
             status = mem_manager_free_virtual_page(request.data, pid);
             status = acknowledge(status, NULL, 0);
             assert(status == 0);
+            break;
         default:
             /* Unknown signal */
             #ifdef MALLOC_VERBOSE
@@ -27,6 +29,7 @@ void main_mem_manager(){
                 "by %d\r\n", pid);
             #endif
             (void) acknowledge(-1, NULL, 0);
+            break;
         }
     }
 }

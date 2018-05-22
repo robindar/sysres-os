@@ -1,6 +1,9 @@
 #include "uart.h"
 #include "misc.h"
+#include "debug.h"
+#include "string.h"
 
+#define IO_BUFF_SIZE 256
 #ifdef HARDWARE
 /*
  * The following code was originally written
@@ -238,46 +241,57 @@ int uart_put_int(int64_t x, unsigned int base, bool unsign, bool upper_hexa) {
 
 /* internal_uart_printf */
 /* the last argument indicates whther or not there is a label */
-int internal_uart_printf(const char* format, va_list adpar, int label) {
+int internal_printf(const char* format, va_list adpar, int label,void (*putc) (unsigned char), int (*puts)(const char*), int (*put_int)(int64_t, unsigned int, bool, bool)) {
+    assert(strlen(format) < IO_BUFF_SIZE);
+    char buff[IO_BUFF_SIZE];
     int written = 0;
+    int buff_index = 0;
     int i = 0;
     while(format[i]) {
-        if(format[i] == '\n' && format[i+1] != '\0' && label) {
-            written += uart_puts("\n\t  ");
+        if(format[i] != '%' && !(format[i] == '\n' && format[i+1] != '\0' && label)) {
+            buff[buff_index] = format[i];
+            buff_index ++;
+            i++;
+            continue;
         }
-        else if(format[i] != '%') {
-            uart_putc(format[i]);
-            written ++;
+        if(buff_index > 0){
+            assert(buff_index <= IO_BUFF_SIZE - 1);
+            buff[buff_index] = '\0';
+            written += puts(buff);
+            buff_index = 0;
+        }
+        if(format[i] == '\n' && format[i+1] != '\0' && label) {
+            written += puts("\n\t  ");
         }
         else {
             switch(format[i+1]) {
                 case '%' :
-                    uart_putc('%');
+                    putc('%');
                     break;
                 case 'd':
-                    written += uart_put_int(va_arg(adpar, int), 10, 0, 0);
+                    written += put_int(va_arg(adpar, int), 10, 0, 0);
                     break;
                 case 'X':
-                    written += uart_put_int(va_arg(adpar, int), 16, 0, 1);
+                    written += put_int(va_arg(adpar, int), 16, 0, 1);
                     break;
                 case 'o':
-                    written += uart_put_int(va_arg(adpar, uint64_t), 8, 1, 0);
+                    written += put_int(va_arg(adpar, uint64_t), 8, 1, 0);
                     break;
                 case 'u':
-                    written += uart_put_int(va_arg(adpar, uint64_t), 10, 1, 0);
+                    written += put_int(va_arg(adpar, uint64_t), 10, 1, 0);
                     break;
                 case 'x':
-                    written += uart_put_int(va_arg(adpar, uint64_t), 16, 1, 0);
+                    written += put_int(va_arg(adpar, uint64_t), 16, 1, 0);
                     break;
                 case 'b':
-                    written += uart_put_int(va_arg(adpar, uint64_t), 2, 1, 0);
+                    written += put_int(va_arg(adpar, uint64_t), 2, 1, 0);
                     break;
                 case 'c':
-                    uart_putc(va_arg(adpar,unsigned int));
+                    putc(va_arg(adpar,unsigned int));
                     written ++;
                     break;
                 case 's':
-                    written += uart_puts(va_arg(adpar, char*));
+                    written += puts(va_arg(adpar, char*));
                     break;
                 default:
                     /* TODO : set ERRNO ? */
@@ -286,6 +300,12 @@ int internal_uart_printf(const char* format, va_list adpar, int label) {
             i ++;
         }
         i ++;
+    }
+    if(buff_index > 0){
+        assert(buff_index < IO_BUFF_SIZE - 1);
+        buff[buff_index] = '\0';
+        written += puts(buff);
+        buff_index = 0;
     }
     return written;
 }
@@ -297,7 +317,7 @@ int internal_uart_printf(const char* format, va_list adpar, int label) {
 int uart_printf(const char* format,...) {
     va_list adpar;
     va_start(adpar, format);
-    int written = internal_uart_printf(format, adpar, 0);
+    int written = internal_printf(format, adpar, 0, uart_putc, uart_puts, uart_put_int);
     va_end(adpar);
     return written;
 }
@@ -309,7 +329,7 @@ int uart_verbose(const char* format __attribute__((__unused__)),...) {
     va_list adpar;
     va_start(adpar, format);
     uart_puts("[VERBOSE] ");
-    written = internal_uart_printf(format, adpar, 1);
+    written = internal_printf(format, adpar, 1, uart_putc, uart_puts, uart_put_int);
     va_end(adpar);
 #endif
     return written;
@@ -321,7 +341,7 @@ int uart_debug(const char* format __attribute__((__unused__)),...) {
     va_list adpar;
     va_start(adpar, format);
     uart_puts("[ DEBUG ] ");
-    written = internal_uart_printf(format, adpar, 1);
+    written = internal_printf(format, adpar, 1, uart_putc, uart_puts, uart_put_int);
     va_end(adpar);
 #endif
     return written;
@@ -333,7 +353,7 @@ int uart_info(const char* format __attribute__((__unused__)),...) {
     va_list adpar;
     va_start(adpar, format);
     uart_puts("[ INFO  ] ");
-    written = internal_uart_printf(format, adpar, 1);
+    written = internal_printf(format, adpar, 1, uart_putc, uart_puts, uart_put_int);
     va_end(adpar);
 #endif
     return written;
@@ -345,7 +365,7 @@ int uart_warning(const char* format __attribute__((__unused__)),...) {
     va_list adpar;
     va_start(adpar, format);
     uart_puts("[WARNING] ");
-    written = internal_uart_printf(format, adpar, 1);
+    written = internal_printf(format, adpar, 1, uart_putc, uart_puts, uart_put_int);
     va_end(adpar);
 #endif
     return written;
@@ -357,7 +377,7 @@ int uart_error(const char* format __attribute__((__unused__)),...) {
     va_list adpar;
     va_start(adpar, format);
     uart_puts("[ ERROR ] ");
-    written = internal_uart_printf(format, adpar, 1);
+    written = internal_printf(format, adpar, 1, uart_putc, uart_puts, uart_put_int);
     va_end(adpar);
 #endif
     return written;
@@ -369,7 +389,7 @@ int uart_wtf(const char* format __attribute__((__unused__)),...) {
     va_list adpar;
     va_start(adpar, format);
     uart_puts("[  WTF  ] ");
-    written = internal_uart_printf(format, adpar, 1);
+    written = internal_printf(format, adpar, 1, uart_putc, uart_puts, uart_put_int);
     va_end(adpar);
 #endif
     return written;
@@ -385,7 +405,8 @@ int uart_get_string(char * buff, size_t size){
     char c;
     size_t i = 0;
     uart_putc(c = uart_getc());
-    while(c != '\r' && i < size - 1){
+    /* Keyboard "Enter" sends a '\r' */
+    while(c != '\r' && c != '\n' && i < size - 1){
         buff[i] = c;
         i ++;
         uart_putc(c = uart_getc());
@@ -393,7 +414,7 @@ int uart_get_string(char * buff, size_t size){
     buff[i + 1] = '\0';
     /* doesn't include '\n' */
     int non_copied_char = 0;
-    while(c != '\r'){
+    while(c != '\r' && c != '\n'){
         non_copied_char ++;
         c = uart_getc();
     }

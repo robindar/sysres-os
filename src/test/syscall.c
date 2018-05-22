@@ -5,6 +5,8 @@
 #include "../libk/sys.h"
 #include "../libk/errno.h"
 
+#define TESTER_PID 4
+
 void id_syscall_test(){
     uart_verbose("Entring id syscall test\r\n");
 
@@ -60,7 +62,7 @@ void fork_test1(){
 
 void fork_test2(){
     uart_verbose("Beginning fork test 2\r\n");
-    assert(get_curr_pid() == 3);
+    assert(get_curr_pid() == TESTER_PID);
     int ret = fork(13);
     uart_verbose("Return value of fork : %d\r\n");
     assert(ret != -1);
@@ -84,7 +86,7 @@ void fork_test2(){
 }
 void fork_test2bis(){
     BEGIN_TEST();
-    assert(get_curr_pid() == 3);
+    assert(get_curr_pid() == TESTER_PID);
     int ret = fork(15);
     uart_verbose("Return value of fork : %d\r\n");
     assert(ret != -1);
@@ -215,7 +217,7 @@ void fork_test4(){
     uart_verbose("Bgeinning fork test 4");
     int n = 15;
     int ret;
-    assert(get_curr_pid() == 3);
+    assert(get_curr_pid() == TESTER_PID);
     for(int i = 0; i < n; i++){
         ret = fork(0);
         assert(ret != -1);
@@ -242,7 +244,7 @@ void fork_test4bis(){
     BEGIN_TEST();
     int n = 10;
     int ret;
-    assert(get_curr_pid() == 3);
+    assert(get_curr_pid() == TESTER_PID);
     for(int i = 0; i < n; i++){
         ret = fork(0);
         assert(ret != -1);
@@ -273,11 +275,9 @@ void sched_test1(){
     uart_verbose("Beginning sched_test1\r\n");
     int ret;
     int n = 5;
-    assert(get_curr_pid() == 3);
+    assert(get_curr_pid() == TESTER_PID);
     ret = fork(13);
     assert(ret != -1);
-    if(get_curr_pid() == 4)
-        assert(ret == 0);
     int first_child = ret;
     if(ret != 0){
         assert(first_child == 4);
@@ -336,7 +336,6 @@ void test_copy_and_write(){
         uart_debug("Child running\r\n");
         DUMP_STACK();
         exit(0,0);
-        /* AT(sp + 8) = 2; */
     }
     END_TEST();
 }

@@ -36,4 +36,7 @@ void fork_test4bis();
 void shutdown_test();
 void test_copy_and_write();
 void test_priviledged_get_string();
+void print_io_formatting_tests();
+void test_io_get_string();
+void io_simple_test();
 #endif

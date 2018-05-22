@@ -129,10 +129,14 @@ void print_prio_lists(){
             do {
                 assert(proc->priority == prio);
                 assert(proc->state == RUNNABLE);
+                #if LOG_LEVEL >= _LOG_VERBOSE_
                 uart_printf("%d, ", proc->pid);
+                #endif
                 proc = proc->next_same_prio;
             } while(proc != sys_state.prio_proc[prio]);
+            #if LOG_LEVEL >= _LOG_VERBOSE_
             uart_printf("\r\n");
+            #endif
         }
     }
 }
@@ -532,7 +536,7 @@ void syscall_send(){
     proc->sender_data.ack_size   = proc->saved_context.registers[4];
     if(sys_state.procs[target_pid].state == LISTENING_CH)
         handle_channel_connection(proc, &sys_state.procs[target_pid]);
-    else proc->state = WAIT_LISTENER;
+    else change_state(proc, WAIT_LISTENER);
     return;
 }
 

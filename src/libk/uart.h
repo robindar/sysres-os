@@ -62,6 +62,7 @@ int uart_error(const char* format,...);
 int uart_wtf(const char* format,...);
 
 int uart_get_string(char * buff, size_t size);
+int uart_put_int(int64_t x, unsigned int base, bool unsign, bool upper_hexa);
 
-
+int internal_printf(const char* format, va_list adpar, int label,void (*putc) (unsigned char), int (*puts)(const char*), int (*put_int)(int64_t, unsigned int, bool, bool));
 #endif
