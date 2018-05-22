@@ -26,12 +26,15 @@ SECTIONS
     {
         bss = .;
         *(.bss)
-    }
         . = ALIGN(0x1000);
-    __bss_end = .;
+        __bss_end = .;
 
+        . = . + 0x1000;
         __filesystem_start = .;
+        *(.filesystem*)
         __filesystem_end = .;
+    }
+
     . = ALIGN(0x1000);
     __data_end = .;
 
