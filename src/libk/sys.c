@@ -1,7 +1,18 @@
 #include "sys.h"
-
+#include "../proc/proc.h"
+#include "../memory/alloc.h"
+#include "debug.h"
 int fork(int priority){
     uint64_t ret;
+    assert(get_curr_pid() <= 3);
+    #ifdef STACK_DUMP
+    uint64_t sp;
+    asm volatile("mov %0, sp":"=r"(sp));
+    uart_debug("Dumping stack in fork with sp: 0x%x\r\n", sp);
+    for(int i = 0; sp + i * 8 < STACK_BEGIN; i++){
+        uart_debug("At 0x%x: 0x%x\r\n", sp + i * 8, AT(sp + i * 8));
+    }
+    #endif
     asm volatile(
         "mov x0, %1;"\
         "SVC #0;"\
@@ -9,6 +20,13 @@ int fork(int priority){
         : "=r"(ret)
         : "r"((uint64_t)priority)
         : "x0");
+    #ifdef STACK_DUMP
+    asm volatile("mov %0, sp":"=r"(sp));
+    uart_debug("Dumping stack after fork with sp: 0x%x\r\n", sp);
+    for(int i = 0; sp + i * 8 < STACK_BEGIN; i++){
+        uart_debug("At 0x%x: 0x%x\r\n", sp + i * 8, AT(sp + i * 8));
+    }
+    #endif
     return (int) ret;
 }
 
@@ -90,6 +108,6 @@ int acknowledge(int return_code, void * ack_data, size_t ack_size){
 
 /* EL0 Only */
 void shutdown(){
-    int code = 1;
-    send(1, &code, sizeof(code), NULL, 0, true);
+    int code = 0;
+    send(INIT_PID, &code, sizeof(code), NULL, 0, true);
 }

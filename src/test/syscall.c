@@ -31,27 +31,36 @@ void id_syscall_test(){
 
 /* Passed for both child and father (without scheduler) */
 void fork_test1(){
+    BEGIN_TEST();
     int ret = fork(0);
     uart_verbose("Return value of fork : %d\r\n");
     assert(ret != -1);
     if(ret == 0){
         /* Child */
         uart_info("Child process running\r\n");
-        id_syscall_test();
-        matrix_main();
-        SYSCALL(100);
+        /* id_syscall_test(); */
+        /* matrix_main(); */
+        exit(0,0);
     }
     else{
         /* Parent */
+        assert(ret == 4);
         uart_info("Parent process running\r\n");
-        id_syscall_test();
-        matrix_main();
-        SYSCALL(100);
+        /* id_syscall_test(); */
+        /* matrix_main(); */
+        err_t exit_status;
+        int pid = wait(&exit_status);
+        assert(exit_status.data == 0);
+        assert(exit_status.no == 0);
+        assert(pid == ret);
+        END_TEST();
+        return;
     }
 }
 
 void fork_test2(){
     uart_verbose("Beginning fork test 2\r\n");
+    assert(get_curr_pid() == 3);
     int ret = fork(13);
     uart_verbose("Return value of fork : %d\r\n");
     assert(ret != -1);
@@ -62,6 +71,7 @@ void fork_test2(){
     }
     else{
         /* Parent */
+        assert(ret == 4);
         uart_info("Parent process running\r\n");
         err_t ret_data;
         int child_pid = wait(&ret_data);
@@ -74,7 +84,8 @@ void fork_test2(){
 }
 void fork_test2bis(){
     BEGIN_TEST();
-    int ret = fork(14);
+    assert(get_curr_pid() == 3);
+    int ret = fork(15);
     uart_verbose("Return value of fork : %d\r\n");
     assert(ret != -1);
     if(ret == 0){
@@ -84,6 +95,7 @@ void fork_test2bis(){
     }
     else{
         /* Parent */
+        assert(ret == 4);
         uart_info("Parent process running\r\n");
         err_t ret_data;
         int child_pid = wait(&ret_data);
@@ -203,6 +215,7 @@ void fork_test4(){
     uart_verbose("Bgeinning fork test 4");
     int n = 15;
     int ret;
+    assert(get_curr_pid() == 3);
     for(int i = 0; i < n; i++){
         ret = fork(0);
         assert(ret != -1);
@@ -229,6 +242,7 @@ void fork_test4bis(){
     BEGIN_TEST();
     int n = 10;
     int ret;
+    assert(get_curr_pid() == 3);
     for(int i = 0; i < n; i++){
         ret = fork(0);
         assert(ret != -1);
@@ -250,6 +264,7 @@ void fork_test4bis(){
     }
     uart_debug("Ret addr: %x\r\n", (uint64_t)__builtin_return_address(0));
     /*uart_debug("FP: %x\r\n", (uint64_t)__builtin_frame_address(0)); */
+    assert(print_children_from_pid(get_curr_pid()) == 0);
     END_TEST();
     return;
 }
@@ -258,10 +273,19 @@ void sched_test1(){
     uart_verbose("Beginning sched_test1\r\n");
     int ret;
     int n = 5;
-    for(int i = 0; i < n; i++){
-        ret = fork(13);
-        assert(ret != -1);
-        if(ret == 0) break;
+    assert(get_curr_pid() == 3);
+    ret = fork(13);
+    assert(ret != -1);
+    if(get_curr_pid() == 4)
+        assert(ret == 0);
+    int first_child = ret;
+    if(ret != 0){
+        assert(first_child == 4);
+        for(int i = 1; i < n; i++){
+            ret = fork(13);
+            assert(ret != -1);
+            if(ret == 0) break;
+        }
     }
     if(ret != 0){
         for(int i = 0; i < n; i++){
@@ -273,10 +297,9 @@ void sched_test1(){
     if(ret != 0){
         err_t ret_data;
         int pid;
-        for(int i = 0; i < n; i++){
+        for(int i = 0; i < 2*n; i++){
             pid = wait(&ret_data);
             uart_verbose("Heard from child: %d\r\n", pid);
-            assert(pid <= 2*n + 1);
             assert(ret_data.data == 1);
             assert(ret_data.no   == 1);
         }
@@ -287,6 +310,33 @@ void sched_test1(){
     }
     uint64_t return_addr = (uint64_t)__builtin_return_address(0);
     uart_debug("Ret addr: %x\r\n", return_addr);
+    assert(print_children_from_pid(get_curr_pid()) == 0);
     uart_verbose("Done sched_test1\r\n");
     return;
+}
+
+#define DUMP_STACK() asm volatile("mov %0, sp":"=r"(sp));\
+    uart_debug("Dumping stack with sp: 0x%x\r\n", sp); \
+    for(int i = 0; i < 5; i++){ \
+        uart_debug("At 0x%x: 0x%x\r\n", sp + i * 8, AT(sp + i * 8));\
+    }\
+
+void test_copy_and_write(){
+    uint64_t sp;
+    BEGIN_TEST();
+    DUMP_STACK();
+    int ret = fork(15);
+    DUMP_STACK();
+    if(ret){
+        uart_debug("Parent running\r\n");
+        (void) wait(NULL);
+    }
+    else
+    {
+        uart_debug("Child running\r\n");
+        DUMP_STACK();
+        exit(0,0);
+        /* AT(sp + 8) = 2; */
+    }
+    END_TEST();
 }

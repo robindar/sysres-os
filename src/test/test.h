@@ -34,4 +34,5 @@ void sched_test1();
 void fork_test4();
 void fork_test4bis();
 void shutdown_test();
+void test_copy_and_write();
 #endif

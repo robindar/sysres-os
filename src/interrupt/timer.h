@@ -3,6 +3,7 @@
 #include <stdint.h>
 
 #define TIMER_IRQ_PAGE     0x3f00b000
+#define PERIPH_BASE        0x3f000000
 #define SECOND                2040816
 #define EPSILON                   200
 #define QUANTUM            (SECOND/1)

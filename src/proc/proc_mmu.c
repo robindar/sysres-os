@@ -37,6 +37,8 @@ void switch_to_proc(proc_descriptor * proc){
     /* we restore sctrl_el1 here */
     asm volatile("msr SCTLR_EL1, %0" : : "r"(proc->saved_context.sctlr_el1));
     /* We are using x0-x7 to pass parameters */
+    /* uart_debug("PC: 0x%x\r\n", proc->saved_context.pc); */
+    /* asm volatile("msr ELR_EL1, %0"::"r"(proc->saved_context.pc)); */
     restore_and_run(
         (uint64_t) &(proc->saved_context.registers[N_REG - 1]),
         proc->saved_context.pc,

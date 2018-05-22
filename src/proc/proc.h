@@ -17,6 +17,10 @@
 #define BUFF_SIZE 512
 #define MAX_PRIO   15
 
+#define KERNEL_PID       0
+#define INIT_PID         1
+#define MEM_MANAGER_PID  2
+
 enum proc_state {
     FREE = 0,                   /* Unused proc slot */
     RUNNABLE,                   /* Ready to be executed */
@@ -118,6 +122,7 @@ void save_alloc_conf(proc_descriptor * proc);
 uint64_t get_lvl2_address_from_sys_state(int pid);
 int get_curr_pid();
 int get_parent_pid(int pid);
+int print_children_from_pid(int pid);
 void change_state(proc_descriptor * proc, enum proc_state new_state);
 
 __attribute__((__noreturn__))

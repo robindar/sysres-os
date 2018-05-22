@@ -34,7 +34,7 @@ void malloc_test() {
     *p = 42;
     uart_debug("*p = %d (should be 42)\r\n", *p);
     uart_debug("Freeing virtual page\r\n");
-    free_virtual_page((uint64_t) p);
+    usr_free_virtual_page((uint64_t) p);
     uart_debug("Accessing freed page, should trigger Translation Fault\r\n");
     *p = 43;                    /* Should cause an Tranlsation Fault again */
     uart_debug("Trying kmalloc with an array\r\n");
@@ -96,8 +96,8 @@ void shutdown_test(){
     assert(ret != -1);
     if(ret == 0){
         /* Child */
-        int code = 0;
-        ret = send(1, &code, sizeof(int), NULL, 0, true);
+        int code = 42;
+        ret = send(INIT_PID, &code, sizeof(int), NULL, 0, true);
         assert(ret == -1);
         shutdown();
     }

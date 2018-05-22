@@ -10,6 +10,7 @@ restore_and_run:
     ISB                               //Done here bc we mustn't touch EL1 stack after
     msr spsr_el1, x3
     msr  elr_el1, x1
+    ISB
     msr spsel, xzr                     //Switch to SP_EL0 stack pointer
     mov sp, x2                         //Restore SP_EL0
     //here we restore buff

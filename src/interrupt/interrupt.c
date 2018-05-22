@@ -1,4 +1,10 @@
 #include "interrupt.h"
+#define INT_VERBOSE
+#ifdef INT_VERBOSE
+#define int_verbose(...) uart_verbose(__VA_ARGS__)
+#else
+#define int_verbose(...) ((void) 0)
+#endif
 
 void display_esr_eln_info(uint64_t esr_eln) {
     //Parse ESR_EL1 (see aarch64, exception and interrupt handling)
@@ -52,11 +58,10 @@ void display_error(char * msg, uint64_t el, uint64_t nb, uint64_t spsr_el, uint6
         msg,el,nb, elr_el, spsr_el, esr_el, far_el);
     display_esr_eln_info(esr_el);
     display_pstate_info(elr_el);
-    abort();
 }
 
 void instruction_abort_handler(uint64_t el, uint64_t nb, uint64_t spsr_el, uint64_t elr_el, uint64_t esr_el, uint64_t far_el, bool lower_el) {
-    uart_verbose(
+    int_verbose(
         "Instruction Abort Handler Called with FAR : 0x%x\r\nAt ELR : 0x%x from %s\r\n",
         far_el, elr_el, (lower_el ? "lower EL" : "same EL"));
         uint64_t instruction_fault_status_code = esr_el & MASK(5,0);
@@ -76,11 +81,12 @@ void instruction_abort_handler(uint64_t el, uint64_t nb, uint64_t spsr_el, uint6
             break;
         default:
             display_error("Instruction Abort Error", el, nb, spsr_el, elr_el, esr_el, far_el);
+            abort();
         }
 }
 
 void data_abort_handler(uint64_t el, uint64_t nb, uint64_t spsr_el, uint64_t elr_el, uint64_t esr_el, uint64_t far_el, bool lower_el) {
-    uart_verbose(
+    int_verbose(
         "Data Abort Handler Called with FAR : 0x%x\r\nAt ELR : 0x%x from %s\r\n",
         far_el, elr_el, (lower_el ? "lower EL" : "same EL"));
         uint64_t data_fault_status_code = esr_el & MASK(5,0);
@@ -100,10 +106,14 @@ void data_abort_handler(uint64_t el, uint64_t nb, uint64_t spsr_el, uint64_t elr
             break;
         default:
             display_error("Data Abort Error", el, nb, spsr_el, elr_el, esr_el, far_el);
+            abort();
         }
 }
 
 void c_sync_handler(uint64_t el, uint64_t nb, uint64_t spsr_el, uint64_t elr_el, uint64_t esr_el, uint64_t far_el) {
+    #ifdef INT_VERBOSE
+    display_error("Sync Exception Error", el, nb, spsr_el, elr_el, esr_el, far_el);
+    #endif
     /* el indicates exception level */
     uint64_t exception_class = (esr_el & 0xfc000000) >> 26;
     /* See ARm ARM 1878 for EC constants */
@@ -122,13 +132,14 @@ void c_sync_handler(uint64_t el, uint64_t nb, uint64_t spsr_el, uint64_t elr_el,
         break;
     default:
         display_error("Sync Exception Error", el, nb, spsr_el, elr_el, esr_el, far_el);
+        abort();
     }
 
 }
 
 __attribute__((__noreturn__))
 void c_timer_irq_handler(){
-    uart_verbose("C Timer IRQ Handler\r\n");
+    int_verbose("C Timer IRQ Handler\r\n");
     clear_ack_timer_irq();
     schedule();
 }

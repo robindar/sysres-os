@@ -161,9 +161,9 @@ void translation_fault_handler(uint64_t fault_address, int level, bool lower_el,
 void access_flag_fault_lvl3_handler(uint64_t fault_address, int level, bool lower_lvl, int pid);
 void permission_fault_handler(uint64_t fault_address, int level, bool lower_lvl, int pid, bool data_abort);
 int free_virtual_page(uint64_t virtual_addr);
-
+void handle_shared_page_write(uint64_t fault_address, bool lower_lvl);
 uint64_t get_page_permission(uint64_t virtual_addr);
-
+int mem_manager_free_virtual_page(uint64_t virtual_addr, int pid);
 /* Setting lvl2_table_address should be done only in mmu.c */
 /* void set_lvl2_address_from_TTBR0_EL1(); */
 /* void set_lvl2_address(uint64_t lvl2_addr); */

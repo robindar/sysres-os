@@ -32,6 +32,7 @@ proc_descriptor new_proc_descriptor(int pid, int parent_pid, int priority, void 
     proc.initialized              = false;
     proc.saved_context.pstate     = new_el0_pstate();
     proc.saved_context.sp         = STACK_BEGIN;
+    /* Not hereditary */
     proc.saved_context.sctlr_el1  = 0xc00801;
     proc.saved_context.pc         = (uint64_t) p;
     proc.err.no                   = OK;
@@ -54,6 +55,7 @@ void make_child_proc_descriptor(proc_descriptor * child, proc_descriptor * paren
     child->saved_context.sp     = parent->saved_context.sp;
     child->saved_context.pc     = parent->saved_context.pc;
     child->err                  = parent->err;
+    child->mem_conf             = parent->mem_conf;
     /* Ack are still for the parent */
     child->sender_data.acknowledged = true;
     for(int i = 1; i < N_REG; i++)
@@ -76,9 +78,9 @@ void print_proc_descriptor(const proc_descriptor * proc){
         "Priority : %d\r\n"
         "State : %d\r\n"
         "Initialized : %s\r\n"
-        "Err.no : %d\r\n",
-        "Err.descr : %d\r\n",
-        "Preemptible : %d\r\n",
+        "Err.no : %d\r\n"
+        "Err.descr : %d\r\n"
+        "Preemptible : %d\r\n"
         "Time left : %ds\r\n",
         proc->pid, proc->parent_pid, proc->priority,
         proc->state, proc->initialized ? "Yes" : "No",
@@ -110,6 +112,7 @@ void print_proc_descriptor(const proc_descriptor * proc){
         proc->mem_conf.ttbr0_el1, proc->mem_conf.heap_begin,
         proc->mem_conf.end_offset,
         (uint64_t)proc->mem_conf.global_base);
+    assert(proc->mem_conf.heap_begin > 0);
     #else
     (void) proc;
     #endif
@@ -134,6 +137,26 @@ void print_prio_lists(){
     }
 }
 
+int print_children(proc_descriptor * parent){
+    int n_children = 0;
+    proc_descriptor * child = parent->child;
+    proc_verbose("Printing children of process %d\r\n", parent->pid);
+    if(child == NULL)
+        return n_children;
+    proc_verbose("- Child %d\r\n", child->pid);
+    n_children ++;
+    while(child->next_sibling != parent->child){
+        child = child->next_sibling;
+        proc_verbose("- Child %d\r\n", child->pid);
+        n_children ++;
+    }
+    return n_children;
+}
+
+int print_children_from_pid(int pid){
+    return print_children(&sys_state.procs[pid]);
+}
+
 /* Init the process management system */
 void init_proc(){
     print_reg(SCTLR_EL1);
@@ -148,19 +171,23 @@ void init_proc(){
     /* Backup TTBR0_EL1 for kernel */
     uint64_t ttbr0_el1;
     asm volatile("mrs %0, TTBR0_EL1" : "=r"(ttbr0_el1));
-    sys_state.procs[0].mem_conf.ttbr0_el1 = ttbr0_el1;
+    sys_state.procs[KERNEL_PID].mem_conf.ttbr0_el1 = ttbr0_el1;
+
     /* Create init process (PID 1) */
-    sys_state.procs[1] = new_proc_descriptor(1, 1, 15, main_init);
+    sys_state.procs[INIT_PID] =
+        new_proc_descriptor(INIT_PID, INIT_PID, 15, main_init);
     /* Process init has the right to power down the unit */
-    sys_state.procs[1].saved_context.sctlr_el1 |= (1 << 18);
-    change_state(&sys_state.procs[1],RUNNABLE);
+    sys_state.procs[INIT_PID].saved_context.sctlr_el1 |= (1 << 18);
+    change_state(&sys_state.procs[INIT_PID],RUNNABLE);
     /* Initialize init proc */
-    set_up_memory_new_proc(&sys_state.procs[1]);
-    save_alloc_conf(&sys_state.procs[0]);
+    set_up_memory_new_proc(&sys_state.procs[INIT_PID]);
+    save_alloc_conf(&sys_state.procs[KERNEL_PID]);
     init_alloc();
-    save_alloc_conf(&sys_state.procs[1]);
-    restore_alloc_conf(&sys_state.procs[0]);
-    sys_state.procs[1].initialized = true;
+    save_alloc_conf(&sys_state.procs[INIT_PID]);
+    assert(sys_state.procs[INIT_PID].mem_conf.heap_begin > 0);
+    restore_alloc_conf(&sys_state.procs[KERNEL_PID]);
+    sys_state.procs[INIT_PID].initialized = true;
+
     uart_info("Proc initialization done\r\n");
     return;
 }
@@ -214,6 +241,14 @@ void write_buff_svc(){
     }
     proc->buffer.write_addr = 0;
     proc->buffer.used_size  = 0;
+    #ifdef STACK_DUMP
+    uint64_t sp;
+    asm volatile("mov %0, sp":"=r"(sp));
+    uart_debug("Dumping stack with sp: 0x%x\r\n", sp);
+    for(int i = 0; sp + i * 8 < STACK_BEGIN; i++){
+        uart_debug("At 0x%x: 0x%x\r\n", sp + i * 8, AT(sp + i * 8));
+    }
+    #endif
     return;
 }
 
@@ -344,6 +379,7 @@ void remove_child(proc_descriptor * parent, proc_descriptor * child){
 /**** SYSCALLS ****/
 void syscall_fork(){
     proc_descriptor * parent = &sys_state.procs[sys_state.last_pid];
+    int n_children = print_children(parent);
     int child_pid = find_free_proc();
     if(child_pid == -1){
         /* No available slot */
@@ -368,6 +404,8 @@ void syscall_fork(){
     child->initialized = true;
     proc_verbose("Forked process %d into child %d of priority %d\r\n",
                  parent->pid, child->pid, child->priority);
+    int new_n_children = print_children(parent);
+    assert(n_children + 1 == new_n_children);
     return;
 }
 
@@ -386,7 +424,7 @@ void handle_zombie_child(proc_descriptor * parent, proc_descriptor * child){
         parent->buffer.used_size = sizeof(err_t);
     }
     remove_child(parent, child);
-    change_state(child, FREE);
+    change_state(child,  FREE);
     change_state(parent, RUNNABLE);
     return;
 }
@@ -394,6 +432,7 @@ void handle_zombie_child(proc_descriptor * parent, proc_descriptor * child){
 void syscall_wait(){
     proc_descriptor * parent = &sys_state.procs[sys_state.last_pid];
     proc_verbose("Syscall wait for process %d\r\n", parent->pid);
+    print_children(parent);
     if(parent->child == NULL){
         /* No child */
         proc_verbose("No child\r\n");
@@ -403,6 +442,10 @@ void syscall_wait(){
     }
     proc_descriptor * child = parent->child;
     /* here child != NULL */
+    if(child->state == ZOMBIE){
+        handle_zombie_child(parent, child);
+        return;
+    }
     do
         child = child->next_sibling;
     while(child->state != ZOMBIE && child->next_sibling != parent->child);
@@ -518,6 +561,7 @@ void handle_channel_ack(proc_descriptor * receiver, proc_descriptor * sender){
         receiver->saved_context.registers[0] = -1;
         return;
     }
+    /*This shouldn't happen as the receiver doesn't choose the pid in acknowledge*/
     assert(sender->sender_data.target_pid == receiver->pid);
     /* Everything went well */
     receiver->saved_context.registers[0] = 0;
@@ -662,7 +706,9 @@ void schedule(){
         unsigned int proba[MAX_PRIO];
         proba[0] = 0;
         for(int i = 1; i < MAX_PRIO; i++){
-            proba[i] =  sys_state.prio_proc_n[i] > 0 ? i * i + sys_state.prio_proc_n[i] : 0;
+            proba[i] =
+                sys_state.prio_proc_n[i] > 0 ?
+                i * i + sys_state.prio_proc_n[i] : 0;
         }
         int prio = random_law(proba, MAX_PRIO);
         run_priority(prio);

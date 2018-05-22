@@ -1,6 +1,7 @@
 #include "alloc.h"
+#include "../usr/mem_manager.h"
+#include "../libk/sys.h"
 
-//Note : we thank GCC who was kindly putting this variable at the same address as physical memeory map (without static) and thus init_alloc was actually modifying physical memory map for our grestest pleasure
 static uint64_t heap_begin;
 static int end_offset;
 
@@ -11,9 +12,16 @@ void init_alloc(){
     asm volatile ("ldr %0, =__end" : "=r"(heap_begin) : :);
     end_offset = 0;
     global_base = NULL;
+    assert(heap_begin > 0);
 
     uart_info("Init Alloc done\r\n");
     return;
+}
+
+
+int usr_free_virtual_page(uint64_t virtual_address){
+    mem_request_t request = {.code = 1, .data = virtual_address};
+    return send(MEM_MANAGER_PID, &request, sizeof(request), NULL, 0, true);
 }
 
 void * ksbrk(int increment) {
@@ -21,12 +29,12 @@ void * ksbrk(int increment) {
     uart_verbose("ksbrk called with increment : %d and end_offset : 0x%x\r\n",increment, end_offset);
     int res = end_offset + heap_begin;
     end_offset += increment;
-    if (res + increment > STACK_END)
+    if (res + increment > HEAP_MAX)
       assert(0); // TODO: Heap overflow
     if(increment < 0){
         int nb_pages_to_free = (res / GRANULE) - ((res + increment) / GRANULE) + (!(res % GRANULE == 0) ? 1 : 0);
         for(int i = 0; i < nb_pages_to_free; i ++){
-            free_virtual_page(res - i * GRANULE);
+            usr_free_virtual_page(res - i * GRANULE);
         }
         res += increment;
     }
@@ -143,6 +151,7 @@ struct alloc_block * find_free_block (struct alloc_block ** last, size_t size) {
 
 struct alloc_block * extend_heap (struct alloc_block * last, size_t size) {
     struct alloc_block *block;
+    assert(heap_begin > 0);
     block = ksbrk(0);
     void * request = ksbrk(size + ABLOCK_SIZE);
     assert((void *) block == request);
