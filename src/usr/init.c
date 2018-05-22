@@ -53,6 +53,7 @@ void start_test_process(){
 void main_init(){
     uart_info("Init process running\r\n");
     start_mem_manager_process();
+    test_priviledged_get_string();
     test_copy_and_write();
     start_test_process();
     listen_shutdown();

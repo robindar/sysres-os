@@ -61,5 +61,7 @@ int uart_warning(const char* format,...);
 int uart_error(const char* format,...);
 int uart_wtf(const char* format,...);
 
+int uart_get_string(char * buff, size_t size);
+
 
 #endif

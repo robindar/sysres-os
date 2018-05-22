@@ -104,3 +104,12 @@ void shutdown_test(){
     END_TEST();
     return;
 }
+
+void test_priviledged_get_string(){
+    char buff[256];
+    while(1){
+        uart_printf(":");
+        uart_get_string(buff, 256);
+        uart_printf("Got: %s\r\n", buff);
+    }
+}

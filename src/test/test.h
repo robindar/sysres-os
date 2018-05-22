@@ -35,4 +35,5 @@ void fork_test4();
 void fork_test4bis();
 void shutdown_test();
 void test_copy_and_write();
+void test_priviledged_get_string();
 #endif

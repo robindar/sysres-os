@@ -102,7 +102,7 @@ unsigned char uart_getc() {
 
 
 #else
-
+/* The following code comes from OSDev */
 enum {
     // The offsets for reach register.
 
@@ -198,6 +198,7 @@ unsigned char uart_getc() {
     return mmio_read(UART0_DR);
 }
 
+/* End of external code */
 #endif
 
 int uart_puts(const char* str) {
@@ -376,4 +377,25 @@ int uart_wtf(const char* format __attribute__((__unused__)),...) {
 
 void uart_simple_put_reg(uint64_t reg) {
     uart_printf("Reg : 0x%x\n",reg);
+}
+
+/* discard non read characters until finds new line */
+/* returns the nb of discraded chars */
+int uart_get_string(char * buff, size_t size){
+    char c;
+    size_t i = 0;
+    uart_putc(c = uart_getc());
+    while(c != '\r' && i < size - 1){
+        buff[i] = c;
+        i ++;
+        uart_putc(c = uart_getc());
+    }
+    buff[i + 1] = '\0';
+    /* doesn't include '\n' */
+    int non_copied_char = 0;
+    while(c != '\r'){
+        non_copied_char ++;
+        c = uart_getc();
+    }
+    return non_copied_char;
 }
