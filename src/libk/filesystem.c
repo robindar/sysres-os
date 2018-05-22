@@ -12,6 +12,7 @@
 #endif
 
 struct inode_t {
+    int index;
     uint32_t kind,
              nlink,
              size;
@@ -62,6 +63,19 @@ char * get_filesystem_type (struct filesystem_t * fs) {
     return fstype;
 }
 
+int min (int a, int b) {
+  return ( a > b ) ? b : a;
+}
+
+#define read_big_endian_int(n) switch_endianness(n)
+uint32_t switch_endianness (uint32_t n) {
+    return
+        ((n >> 24) & 0x000000ff) | // move byte 3 to byte 0
+        ((n >>  8) & 0x0000ff00) | // move byte 2 to byte 1
+        ((n <<  8) & 0x00ff0000) | // move byte 1 to byte 2
+        ((n << 24) & 0xff000000);  // move byte 0 to byte 3
+}
+
 void seek_block (int n) {
     filesystem_very_verbose("Seeking block %d(%d) of %d\r\n", n, (unsigned int) n, filesystem.block_count);
     assert((unsigned int) n < filesystem.block_count);
@@ -78,19 +92,44 @@ char * read_block (int n) {
     return content;
 }
 
-#define read_big_endian_int(n) switch_endianness(n)
-uint32_t switch_endianness (uint32_t n) {
-    return
-        ((n >> 24) & 0x000000ff) | // move byte 3 to byte 0
-        ((n >>  8) & 0x0000ff00) | // move byte 2 to byte 1
-        ((n <<  8) & 0x00ff0000) | // move byte 1 to byte 2
-        ((n << 24) & 0xff000000);  // move byte 0 to byte 3
+void write_block (int n, const char * content) {
+    seek_block(n);
+    for (unsigned int i = 0; i < filesystem.block_size; i++) {
+        *(filesystem.seek_cursor + i) = content[i];
+    }
+}
+
+int alloc_block () {
+    filesystem_very_verbose("Allocating new bloc from index %d\r\n", filesystem.free_block_list);
+    uint32_t * block_index = (uint32_t *) read_block(filesystem.free_block_list);
+    int offset = 1;
+    if (read_big_endian_int(block_index[offset]) == 0) {
+        // Block index is empty, change bloc index
+        uint32_t last_free_block_list = filesystem.free_block_list;
+        filesystem.free_block_list = read_big_endian_int(block_index[0]);
+        filesystem_very_verbose("No free block on block index, new block index is %d\r\n", filesystem.free_block_list);
+        return last_free_block_list;
+    }
+    while (offset + 1 < filesystem.block_size / 4
+            && read_big_endian_int(block_index[offset+1] != 0))
+        offset++;
+    uint32_t free_block = read_big_endian_int(block_index[offset]);
+    block_index[offset] = switch_endianness(0);
+    write_block(filesystem.free_block_list, block_index);
+    kfree(block_index);
+    filesystem_very_verbose("Allocating block 0x%x\r\n", free_block);
+    return free_block;
+}
+
+int free_block () {
+
 }
 
 struct inode_t read_inode (int n) {
     filesystem_very_verbose("Reading inode number %d\r\n", n);
     seek_block(n);
     struct inode_t inode;
+    inode.index = n;
     inode.kind  = read_big_endian_int(* ((uint32_t *) filesystem.seek_cursor));
     inode.nlink = read_big_endian_int(* ((uint32_t *) filesystem.seek_cursor + 1));
     inode.size  = read_big_endian_int(* ((uint32_t *) filesystem.seek_cursor + 2));
@@ -104,6 +143,13 @@ struct inode_t read_inode (int n) {
     return inode;
 }
 
+void write_inode (struct inode_t inode) {
+    seek_block(inode.index);
+    (* ((uint32_t *) filesystem.seek_cursor)) = switch_endianness(inode.kind);
+    (* ((uint32_t *) filesystem.seek_cursor + 1)) = switch_endianness(inode.nlink);
+    (* ((uint32_t *) filesystem.seek_cursor + 2)) = switch_endianness(inode.size);
+}
+
 int get_next_available_file_descriptor_slot () {
     for (int i = 0; i < MAX_FILE_DESCRIPTORS; i++) {
         if (file_descriptor_table[i].closed)
@@ -115,6 +161,26 @@ int get_next_available_file_descriptor_slot () {
 bool is_at_end_of_file (int file_desc) {
     struct file_descriptor * fd = file_descriptor_table + file_desc;
     return (fd->inode.size <= fd->pos);
+}
+
+void extend_file (int file_descriptor, int len) {
+    filesystem_very_verbose("Extending file descriptor %d from %d\r\n", file_descriptor, len);
+    struct file_descriptor * fd = file_descriptor_table + file_descriptor;
+    if (fd->inode.size >= fd->pos + len) {
+        filesystem_very_verbose("Already OK : inode size is %d, pos %d, len %d\r\n", fd->inode.size, fd->pos, len);
+        return;
+    }
+    filesystem_very_verbose("Initial inode size is %d\r\n", fd->inode.size);
+    fd->inode.size += min(len, filesystem.block_size - (fd->inode.size % filesystem.block_size));
+    filesystem_very_verbose("Initial inode size is %d\r\n", fd->inode.size);
+    int index_of_last_block = fd->inode.size / filesystem.block_size;
+    while (fd->inode.size < fd->pos + len) {
+        fd->inode.size += min(fd->pos + len - fd->inode.size, filesystem.block_size);
+        fd->inode.blocks[++index_of_last_block] = alloc_block();
+    filesystem_very_verbose("Current inode size is %d\r\n", fd->inode.size);
+    }
+    write_inode(fd->inode);
+    filesystem_very_verbose("Final inode size is %d\r\n", fd->inode.size);
 }
 
 int fclose (int file_desc) {
@@ -142,13 +208,29 @@ int fopen (const char * path, int oflag) {
     return 0;
 }
 
-int min (int a, int b) {
-  return ( a > b ) ? b : a;
+void fseek (int file_descriptor, int offset, enum seek_t whence) {
+    struct file_descriptor * fd = file_descriptor_table + file_descriptor;
+    uint32_t pos = fd->pos;
+    switch (whence) {
+        case SEEK_SET:
+            pos = offset;
+            break;
+        case SEEK_CUR:
+            pos += offset;
+            break;
+        case SEEK_END:
+            pos = fd->inode.size + offset;
+            break;
+        default:
+            assert(0);
+    }
+    assert(pos >=  0);
+    assert(pos <= fd->inode.size);
+    fd->pos = pos;
 }
 
 /* Reads exactly len bytes. DOES NOT terminate the string, this is the caller's responsibility */
-int read (int file_descriptor, char * buffer, int from, int len) {
-    assert(from >= 0);
+int read (int file_descriptor, char * buffer, int len) {
     assert(len >= 0);
     filesystem_very_verbose("Reading file descriptor %d\r\n", file_descriptor);
     struct file_descriptor * fd = file_descriptor_table + file_descriptor;
@@ -161,9 +243,30 @@ int read (int file_descriptor, char * buffer, int from, int len) {
         filesystem_very_verbose("Block is number %d\r\n", block_number);
         block = read_block((int) block_number);
         int copy_len = min (len, filesystem.block_size - (fd->pos % filesystem.block_size));
-        memcpy(buffer + from, block + (fd->pos % filesystem.block_size), copy_len);
+        memcpy(buffer, block + (fd->pos % filesystem.block_size), copy_len);
         fd->pos += copy_len;
-        from += copy_len;
+        buffer += copy_len;
+        kfree(block);
+    }
+    return len;
+}
+
+int write (int file_descriptor, const char * buffer, int len) {
+    assert(len >=0);
+    filesystem_very_verbose("Writing to file descriptor %d\r\n", file_descriptor);
+    struct file_descriptor * fd = file_descriptor_table + file_descriptor;
+    extend_file(file_descriptor, len);
+    uint32_t pos = fd->pos;
+    assert(len <= fd->inode.size - fd->pos);
+    char * block;
+    while (fd->pos < pos + len) {
+        uint32_t block_number = read_big_endian_int(fd->inode.blocks[fd->pos / filesystem.block_size]);
+        block = read_block((int) block_number);
+        int copy_len = min (pos + len - fd->pos, filesystem.block_size - (fd->pos % filesystem.block_size));
+        memcpy(block + (fd->pos % filesystem.block_size), buffer, copy_len);
+        write_block((int) block_number, block);
+        fd->pos += copy_len;
+        buffer += copy_len;
         kfree(block);
     }
     return len;
@@ -175,10 +278,9 @@ struct dirent_t {
 };
 
 struct dirent_t read_dirent (int file_descriptor) {
-    struct file_descriptor * fd = file_descriptor_table + file_descriptor;
     char * dir = kmalloc( DIRECTORY_ENTRY_SIZE * sizeof(char) );
     filesystem_very_verbose("Reading directory entry for descriptor number %d\r\n", file_descriptor);
-    read(file_descriptor, dir, 0, DIRECTORY_ENTRY_SIZE);
+    read(file_descriptor, dir, DIRECTORY_ENTRY_SIZE);
     struct dirent_t dirent;
     dirent.inode = read_big_endian_int( * ((uint32_t *) (dir + FILENAME_MAX_SIZE)) );
     dirent.name = dir;
@@ -227,11 +329,68 @@ void print_filesystem_info () {
     uart_verbose("    fstype: %s\r\n", filesystem.type);
     uart_verbose("    root_inode: %d\r\n", read_big_endian_int(filesystem.superblock->root_inode));
 
-    uart_verbose("\r\nPrinting directory tree\r\n");
+    uart_verbose("Printing directory tree\r\n");
     char * root = kmalloc(sizeof(char));
     root[0] = 0;
-    print_directory(1, root, 2);
+    print_directory(1, root, 1);
+
+    /*
+    // Print file content
+    char * content = kmalloc(513 * sizeof(char));
+    int fd = iopen(155);
+    read(fd, content, 512);
+    content[512] = 0;
+    uart_verbose("Printing file content\r\n");
+    uart_printf("%s\r\n", content);
+    kfree(content);
+
+    // Modify file content
+    uart_verbose("Modifying file content\r\n");
+    char * n_content = "Pikabu !! Hahaha";
+    fseek(fd, 0, SEEK_SET);
+    write(fd, n_content, 16);
+
+    // Print file content (hopefully modified)
+    content = kmalloc(513 * sizeof(char));
+    fseek(fd, 0, SEEK_SET);
+    read(fd, content, 512);
+    content[512] = 0;
+    uart_verbose("Printing file content\r\n");
+    uart_printf("%s\r\n", content);
+    kfree(content);
+    */
+
+    #define TEST_INODE 822
+    // Print file tail
+    char * content = kmalloc(513 * sizeof(char));
+    int fd = iopen(TEST_INODE);
+    fseek(fd, 0, SEEK_SET);
+    fseek(fd, -128, SEEK_END);
+    read(fd, content, 128);
+    content[128] = 0;
+    uart_verbose("Printing file content\r\n");
+    uart_printf("%s\r\n", content);
+    kfree(content);
+
+    // Modify file content
+    uart_verbose("Modifying file content\r\n");
+    fd = iopen(TEST_INODE);
+    char * n_content = "012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678";
+    fseek(fd, 0, SEEK_END);
+    write(fd, n_content, 100);
+
+    // Print file content (hopefully modified)
+    content = kmalloc(512 * sizeof(char));
+    fd = iopen(TEST_INODE);
+    fseek(fd, -128, SEEK_END);
+    read(fd, content, 128);
+    content[128] = 0;
+    uart_verbose("Printing file content\r\n");
+    uart_printf("%s\r\n", content);
+    kfree(content);
+
     assert(0);
+
 }
 
 void init_file_descriptor_table () {
