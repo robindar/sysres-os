@@ -42,7 +42,6 @@ block_attributes_sg1 new_block_attributes_sg1(enum block_perm_config perm_config
 void init_block_and_page_entry_sg1(uint64_t entry_addr, uint64_t inner_addr, block_attributes_sg1 ba) {
     AT(entry_addr) = (AT(entry_addr) & (MASK(63,48) | MASK(11,0))) |
         ((inner_addr & MASK(35,0)));
-    //uart_debug("Entry addr = %x\r\n", entry_addr);
     set_block_and_page_attributes_sg1(entry_addr, ba);
 }
 
@@ -127,7 +126,6 @@ void set_table_attributes_sg1(uint64_t addr, table_attributes_sg1 ta1) {
     entry |= (ta1.PXNTable & 1) << 59;
     // Mark entry as a table entry (cf. ARM ARM 2144)
     entry |= 3;
-    //uart_debug("Entry is %x\r\n", entry);
     * ((uint64_t *) addr) = entry;
 }
 
@@ -135,7 +133,6 @@ void init_table_entry_sg1(uint64_t entry_addr, uint64_t inner_addr) {
     * ((uint64_t *) entry_addr) =
         ((* (uint64_t *) entry_addr) & (MASK(63, 48) | MASK(11, 0))) |
         ((inner_addr & MASK(35, 0)) ); /* The bit shift here was also a mistake : ARM ARM 2146*/
-    //uart_debug("%x -> %x\r\n", inner_addr, inner_addr & 0xfffffffff);
     set_table_attributes_sg1(entry_addr, new_table_attributes_sg1());
 }
 

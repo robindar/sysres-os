@@ -294,7 +294,7 @@ struct dirent_t read_dirent (int file_descriptor) {
  * and the offset at which the / happens if a match is found
  */
 int filename_match (const char * path, const char * dirname) {
-    int cur = 0, match;
+    int cur = 0;
     while (cur < FILENAME_MAX_SIZE) {
         if ((path[cur] == '/' || path[cur] == 0) && dirname[cur] == 0)
             return cur;

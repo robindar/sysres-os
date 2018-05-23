@@ -242,7 +242,6 @@ int uart_put_int(int64_t x, unsigned int base, bool unsign, bool upper_hexa) {
 /* internal_uart_printf */
 /* the last argument indicates whther or not there is a label */
 int internal_printf(const char* format, va_list adpar, int label,void (*putc) (unsigned char), int (*puts)(const char*), int (*put_int)(int64_t, unsigned int, bool, bool)) {
-    assert(strlen(format) < IO_BUFF_SIZE);
     char buff[IO_BUFF_SIZE];
     int written = 0;
     int buff_index = 0;
@@ -251,6 +250,11 @@ int internal_printf(const char* format, va_list adpar, int label,void (*putc) (u
         if(format[i] != '%' && !(format[i] == '\n' && format[i+1] != '\0' && label)) {
             buff[buff_index] = format[i];
             buff_index ++;
+            if (buff_index == IO_BUFF_SIZE - 1) {
+                buff[buff_index] = 0;
+                puts (buff);
+                buff_index = 0;
+            }
             i++;
             continue;
         }
