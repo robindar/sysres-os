@@ -211,6 +211,7 @@ void fseek (int file_descriptor, int offset, enum seek_t whence) {
             pos += offset;
             break;
         case SEEK_END:
+            assert (offset <= 0);
             pos = fd->inode.size + offset;
             break;
         default:
@@ -305,6 +306,8 @@ int filename_match (const char * path, const char * dirname) {
 }
 
 int inode_of_path (const char * path) {
+    if (*path == '/')
+      path += 1;
     int fdesc = iopen(filesystem.root_inode);
     struct file_descriptor * fd = file_descriptor_table + fdesc;
     while (! is_at_end_of_file(fdesc)) {
@@ -348,6 +351,7 @@ void print_directory (int inode, char * dirname, int max_depth) {
         }
         kfree(dirent.name);
     }
+    fclose(fd);
 }
 
 void print_filesystem_info () {
@@ -370,7 +374,7 @@ void print_filesystem_info () {
     uart_verbose("    fstype: %s\r\n", filesystem.type);
     uart_verbose("    root_inode: %d\r\n", read_big_endian_int(filesystem.superblock->root_inode));
 
-    uart_verbose("/LICENSE has inode %d\r\n", inode_of_path("LICENSE"));
+    uart_verbose("/config/auto-aux/gethostbyname.c has inode %d\r\n", inode_of_path("/config/auto-aux/gethostbyname.c"));
 
     uart_verbose("Printing directory tree\r\n");
     char * root = kmalloc(sizeof(char));
@@ -386,6 +390,7 @@ void print_filesystem_info () {
     uart_verbose("Printing file content\r\n");
     uart_printf("%s\r\n", content);
     kfree(content);
+    fclose(fd);
 
     // Modify file content
     uart_verbose("Modifying file content\r\n");
@@ -407,30 +412,35 @@ void print_filesystem_info () {
     // Print file tail
     char * content = kmalloc(513 * sizeof(char));
     int fd = iopen(TEST_INODE);
-    fseek(fd, 0, SEEK_SET);
+    assert(fd != -1);
     fseek(fd, -128, SEEK_END);
     read(fd, content, 128);
     content[128] = 0;
     uart_verbose("Printing file content\r\n");
     uart_printf("%s\r\n", content);
     kfree(content);
+    fclose(fd);
 
     // Modify file content
     uart_verbose("Modifying file content\r\n");
     fd = iopen(TEST_INODE);
+    assert(fd != -1);
     char * n_content = "012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678";
     fseek(fd, 0, SEEK_END);
     write(fd, n_content, 100);
+    fclose(fd);
 
     // Print file content (hopefully modified)
     content = kmalloc(512 * sizeof(char));
     fd = iopen(TEST_INODE);
+    assert(fd != -1);
     fseek(fd, -128, SEEK_END);
     read(fd, content, 128);
     content[128] = 0;
     uart_verbose("Printing file content\r\n");
     uart_printf("%s\r\n", content);
     kfree(content);
+    fclose(fd);
 
     assert(0);
 
