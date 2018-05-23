@@ -12,6 +12,8 @@
 __attribute__((__noreturn__))
 void main_fs_manager(){
     assert(get_curr_pid() == FS_MANAGER_PID);
+    init_filesystem();
+    uart_verbose("sizeof(request): %d\r\n", sizeof(fs_request_t));
     int pid, status = 0;
     fs_request_t request = {0};
     fs_response_t response = {0};
@@ -25,7 +27,7 @@ void main_fs_manager(){
             break;
         case 1:
             fs_verbose("FS: Fopen from %d\r\n", pid);
-            status = fopen(request.buff1, (int) request.data1);
+            status = fopen(request.buff1, 0);
             status = acknowledge(status, NULL, 0);
             break;
         case 2:

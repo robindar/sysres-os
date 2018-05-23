@@ -3,7 +3,7 @@
 #include "filesystem.h"
 
 int uclose (int file_descriptor);
-int ufopen (const char * path, int oflag);
+int uopen (const char * path);
 void useek    (int file_descriptor, int offset, enum seek_t whence);
 size_t uread  (int file_descriptor,       void * buf, size_t byte_count);
 size_t uwrite (int file_descriptor, const void * buf, size_t byte_count);

@@ -2,7 +2,7 @@
 #define IO_H
 #include <stdint.h>
 #include "../proc/proc.h"
-#define IO_BUFF_SIZE 256
+#define IO_BUFF_SIZE 500
 typedef struct {
     int code;
     uint64_t data;

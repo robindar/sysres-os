@@ -47,6 +47,7 @@ void start_test_process(){
         /* fork_test4bis(); */
         /* sched_test1(); */
         /* io_simple_test(); */
+        fs_test1();
         print_io_formatting_tests();
         test_io_get_string();
         uart_info("TEST SUCCESS\r\n");

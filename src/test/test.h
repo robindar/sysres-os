@@ -39,4 +39,5 @@ void test_priviledged_get_string();
 void print_io_formatting_tests();
 void test_io_get_string();
 void io_simple_test();
+void fs_test1();
 #endif

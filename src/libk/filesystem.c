@@ -483,5 +483,9 @@ void init_filesystem () {
     init_file_descriptor_table();
 
     uart_verbose("Filesystem found from 0x%x to 0x%x\r\n", filesystem_start, filesystem_end);
-    print_filesystem_info();
+    /* print_filesystem_info(); */
+}
+
+void move (const char * src_path, const char * dst_path){
+    
 }

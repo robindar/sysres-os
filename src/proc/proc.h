@@ -12,10 +12,10 @@
 /* we have 16 bits for ASID according to memory/init_mmu.s */
 /* but for now we will only allow 256 proc */
 /* see doc/mmu.md for why only 32 */
-#define MAX_PROC   32
-#define N_REG      31            /* x0-x30 */
-#define BUFF_SIZE 512
-#define MAX_PRIO   15
+#define MAX_PROC    32
+#define N_REG       31            /* x0-x30 */
+#define BUFF_SIZE 1024
+#define MAX_PRIO    15
 
 #define KERNEL_PID       0
 #define INIT_PID         1

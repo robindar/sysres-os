@@ -8,12 +8,13 @@ int uclose (int file_descriptor){
     return send(FS_MANAGER_PID, &req, sizeof(fs_request_t), NULL, 0, true);
 }
 
-int ufopen (const char * path, int oflag){
+int uopen (const char * path){
     size_t size = strsize(path);
-    if(size > IO_BUFF_SIZE)
-        /* TODO: errno */
+    if(size > IO_BUFF_SIZE){
+        err.no = SEND_DATA_TOO_LARGE;
         return -1;
-    fs_request_t req = {.code = 1, .data1 = (uint64_t) oflag};
+    }
+    fs_request_t req = {.code = 1};
     memmove(req.buff1, path, size);
     return send(FS_MANAGER_PID, &req, sizeof(fs_request_t), NULL, 0, true);
 }
@@ -37,9 +38,10 @@ size_t uread  (int file_descriptor,       void * buf, size_t byte_count){
 size_t uwrite (int file_descriptor, const void * buf, size_t byte_count){
     fs_request_t req = {.code = 4, .file_descriptor = file_descriptor,
                         .data1 = (uint64_t) byte_count};
-    if(byte_count > IO_BUFF_SIZE)
-        /* TODO: errno */
+    if(byte_count > IO_BUFF_SIZE){
+        err.no = SEND_DATA_TOO_LARGE;
         return -1;
+    }
     memmove(req.buff1, buf, byte_count);
     return send(FS_MANAGER_PID, &req, sizeof(fs_request_t), NULL, 0, true);
 }
