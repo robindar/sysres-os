@@ -374,7 +374,7 @@ void print_filesystem_info () {
     uart_verbose("    fstype: %s\r\n", filesystem.type);
     uart_verbose("    root_inode: %d\r\n", read_big_endian_int(filesystem.superblock->root_inode));
 
-    uart_verbose("/config/auto-aux/gethostbyname.c has inode %d\r\n", inode_of_path("/config/auto-aux/gethostbyname.c"));
+    /* uart_verbose("/config/auto-aux/gethostbyname.c has inode %d\r\n", inode_of_path("/config/auto-aux/gethostbyname.c")); */
 
     uart_verbose("Printing directory tree\r\n");
     char * root = kmalloc(sizeof(char));
@@ -483,7 +483,7 @@ void init_filesystem () {
     init_file_descriptor_table();
 
     uart_verbose("Filesystem found from 0x%x to 0x%x\r\n", filesystem_start, filesystem_end);
-    /* print_filesystem_info(); */
+    print_filesystem_info();
 }
 
 void move (const char * src_path, const char * dst_path){

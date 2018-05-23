@@ -15,7 +15,6 @@ extern "C" /* Use C linkage for kernel_main. */
 void kernel_init() {
     uart_info("Beginning kernel initialization\r\n");
     init_alloc();
-    init_proc();
     init_timer_irq();
     uart_info("Performed kernel initialization\r\n");
 }
