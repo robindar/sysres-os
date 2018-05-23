@@ -641,11 +641,6 @@ void c_el1_svc_aarch64_handler(uint64_t esr_el1){
         proc_verbose("Syscall code 5 : Acknowledge\r\n");
         syscall_acknowledge();
         break;
-    case 100:
-        /* Halt syscall (halt cannot be executed at EL0) */
-        proc_verbose("Syscall code 100 : Halt\r\n");
-        halt();
-        break;
     case 101:
         /* Test syscall : does nothing */
         proc_verbose("Syscall code 101 : Test id\r\n");
