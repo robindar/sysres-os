@@ -814,7 +814,7 @@ void handle_shared_page_write(uint64_t fault_address, bool lower_lvl){
         decrement_bind_counter(phys_address);
         /* get new page and map it somewhere else */
         /* TODO: make constraint */
-        uint64_t temp_addr = STACK_END - GRANULE;
+        uint64_t temp_addr = PAGE_RES_1;
         int status = get_new_page(temp_addr,
                      KERNEL_PAGE | ACCESS_FLAG_SET,
                      NORMAL_WT_NT);
@@ -828,6 +828,7 @@ void handle_shared_page_write(uint64_t fault_address, bool lower_lvl){
         block_attributes_sg1 ba =
             new_block_attributes_sg1((lower_lvl ? USER_PAGE : KERNEL_PAGE) | ACCESS_FLAG_SET,NORMAL_WT_NT);
         set_invalid_page(temp_addr);
+        asm volatile("TLBI VAE1  , %0" : : "r"(temp_addr/GRANULE) :);
         status = bind_address(aligned_fault_addr, temp_phys_address, ba);
         assert(status == 0);
     }
