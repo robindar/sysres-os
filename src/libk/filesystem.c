@@ -190,7 +190,7 @@ int fclose (int file_desc) {
 
 int iopen (int inode_number) {
     int slot = get_next_available_file_descriptor_slot();
-    if (slot == -1)
+    if (slot == -1 || inode_number == -1)
         return -1;
     struct file_descriptor * fd = file_descriptor_table + slot;
     fd->inode = read_inode (inode_number);
@@ -198,14 +198,6 @@ int iopen (int inode_number) {
     fd->closed = 0;
     // TODO: set file_descriptor.owner_pid
     return slot;
-}
-
-int fopen (const char * path, int oflag) {
-    int slot = get_next_available_file_descriptor_slot();
-    if (slot == -1)
-      return -1;
-    // TODO: Init the actual file descriptor here
-    return 0;
 }
 
 void fseek (int file_descriptor, int offset, enum seek_t whence) {
@@ -219,6 +211,7 @@ void fseek (int file_descriptor, int offset, enum seek_t whence) {
             pos += offset;
             break;
         case SEEK_END:
+            assert (offset <= 0);
             pos = fd->inode.size + offset;
             break;
         default:
@@ -251,6 +244,10 @@ int read (int file_descriptor, char * buffer, int len) {
     return len;
 }
 
+size_t fread (int file_descriptor, void * buffer, size_t len) {
+    return (size_t) read(file_descriptor, (char *) buffer, (int) len);
+}
+
 int write (int file_descriptor, const char * buffer, int len) {
     assert(len >=0);
     filesystem_very_verbose("Writing to file descriptor %d\r\n", file_descriptor);
@@ -272,6 +269,10 @@ int write (int file_descriptor, const char * buffer, int len) {
     return len;
 }
 
+size_t fwrite (int file_descriptor, const void * buffer, size_t len) {
+    return (size_t) write(file_descriptor, (char *) buffer, (int) len);
+}
+
 struct dirent_t {
     uint32_t inode;
     char * name;
@@ -287,6 +288,49 @@ struct dirent_t read_dirent (int file_descriptor) {
     dir[FILENAME_MAX_SIZE] = 0;
     filesystem_very_verbose("Read directory entry for descriptor %d\r\n", file_descriptor);
     return dirent;
+}
+
+/* returns -1 if the name does not match,
+ * and the offset at which the / happens if a match is found
+ */
+int filename_match (const char * path, const char * dirname) {
+    int cur = 0, match;
+    while (cur < FILENAME_MAX_SIZE) {
+        if ((path[cur] == '/' || path[cur] == 0) && dirname[cur] == 0)
+            return cur;
+        if (path[cur] != dirname[cur])
+            return -1;
+        cur++;
+    }
+    return (path[cur] == '/' || path[cur] == 0) ? cur : -1;
+}
+
+int inode_of_path (const char * path) {
+    if (*path == '/')
+      path += 1;
+    int fdesc = iopen(filesystem.root_inode);
+    struct file_descriptor * fd = file_descriptor_table + fdesc;
+    while (! is_at_end_of_file(fdesc)) {
+        struct dirent_t dirent = read_dirent(fdesc);
+        int match = filename_match(path, dirent.name);
+        if (match > 0) {
+            path += match;
+            if (*path == 0) {
+                kfree(dirent.name);
+                return dirent.inode;
+            }
+            path += 1;
+            fd->inode = read_inode(dirent.inode);
+            fd->pos = 0;
+        }
+        kfree(dirent.name);
+    }
+    fclose(fdesc);
+    return -1;
+}
+
+int fopen (const char * path, int oflag) {
+    return iopen(inode_of_path(path));
 }
 
 bool is_special_directory (char * name) {
@@ -307,6 +351,7 @@ void print_directory (int inode, char * dirname, int max_depth) {
         }
         kfree(dirent.name);
     }
+    fclose(fd);
 }
 
 void print_filesystem_info () {
@@ -329,6 +374,8 @@ void print_filesystem_info () {
     uart_verbose("    fstype: %s\r\n", filesystem.type);
     uart_verbose("    root_inode: %d\r\n", read_big_endian_int(filesystem.superblock->root_inode));
 
+    uart_verbose("/config/auto-aux/gethostbyname.c has inode %d\r\n", inode_of_path("/config/auto-aux/gethostbyname.c"));
+
     uart_verbose("Printing directory tree\r\n");
     char * root = kmalloc(sizeof(char));
     root[0] = 0;
@@ -343,6 +390,7 @@ void print_filesystem_info () {
     uart_verbose("Printing file content\r\n");
     uart_printf("%s\r\n", content);
     kfree(content);
+    fclose(fd);
 
     // Modify file content
     uart_verbose("Modifying file content\r\n");
@@ -364,30 +412,35 @@ void print_filesystem_info () {
     // Print file tail
     char * content = kmalloc(513 * sizeof(char));
     int fd = iopen(TEST_INODE);
-    fseek(fd, 0, SEEK_SET);
+    assert(fd != -1);
     fseek(fd, -128, SEEK_END);
     read(fd, content, 128);
     content[128] = 0;
     uart_verbose("Printing file content\r\n");
     uart_printf("%s\r\n", content);
     kfree(content);
+    fclose(fd);
 
     // Modify file content
     uart_verbose("Modifying file content\r\n");
     fd = iopen(TEST_INODE);
+    assert(fd != -1);
     char * n_content = "012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678";
     fseek(fd, 0, SEEK_END);
     write(fd, n_content, 100);
+    fclose(fd);
 
     // Print file content (hopefully modified)
     content = kmalloc(512 * sizeof(char));
     fd = iopen(TEST_INODE);
+    assert(fd != -1);
     fseek(fd, -128, SEEK_END);
     read(fd, content, 128);
     content[128] = 0;
     uart_verbose("Printing file content\r\n");
     uart_printf("%s\r\n", content);
     kfree(content);
+    fclose(fd);
 
     assert(0);
 
