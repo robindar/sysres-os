@@ -8,7 +8,7 @@ static uint64_t lvl2_table_address;
 /* See doc/proc.md for where it is initialized */
 
 static volatile uint64_t id_paging_size;
-
+#define MMU_VERBOSE
 #ifdef MMU_VERBOSE
 #define mmu_verbose(...) uart_verbose(__VA_ARGS__)
 #else

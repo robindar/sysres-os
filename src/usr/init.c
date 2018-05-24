@@ -6,9 +6,10 @@
 #include "mem_manager.h"
 #include "io.h"
 #include "fs_manager.h"
+#include "shell.h"
 
 void listen_shutdown(){
-    int pid;
+    int pid,status;
     /* we want the proc to send a code, o/w we reject */
     int code = 1;
     while(1){
@@ -17,6 +18,11 @@ void listen_shutdown(){
         case 0:
             uart_info("System halting at the request of process %d\r\n", pid);
             halt();
+            break;
+        case 1:
+            /* test */
+            status = acknowledge(0, NULL, 0);
+            assert(status == 0);
             break;
         default:
             /* Unknown signal */
@@ -40,6 +46,7 @@ void start_test_process(){
     assert(ret != -1);
     if (ret != 0) return;
     else {
+        shell();
         /* fork_test1(); */
         /* fork_test2(); */
         /* fork_test2bis(); */
@@ -48,6 +55,7 @@ void start_test_process(){
         /* sched_test1(); */
         /* io_simple_test(); */
         /* fs_test1(); */
+        time_send();
         print_io_formatting_tests();
         test_io_get_string();
         uart_info("TEST SUCCESS\r\n");

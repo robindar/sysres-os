@@ -40,4 +40,6 @@ void print_io_formatting_tests();
 void test_io_get_string();
 void io_simple_test();
 void fs_test1();
+void time_send();
+void a_page_s_file();
 #endif

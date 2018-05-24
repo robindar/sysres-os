@@ -136,6 +136,12 @@ uint64_t random(uint64_t bound){
     return (val % bound);
 }
 
+uint64_t time(){
+    uint64_t val;
+    asm("mrs %0, CNTPCT_EL0" : "=r"(val)::);
+    return val;
+}
+
 #define NON_DETERMINISTIC
 uint64_t random_law(unsigned int * law, int n){
     #ifdef DETERMINISTIC_MAX

@@ -2,6 +2,7 @@
 #include "../libk/debug.h"
 #include "../libk/uart.h"
 #include "../libk/io_lib.h"
+#include "../usr/io.h"
 
 void print_formatting_tests() {
     uart_debug("Performing printf formatting tests:\r\n");
@@ -80,6 +81,15 @@ void malloc_test() {
     uart_debug("Done testing malloc\r\n");
 }
 
+void a_page_s_file(){
+    uart_printf("Entering malloc test\r\n");
+    uart_printf("Allocating uint64 dynamically\r\n");
+    uint64_t * p = (uint64_t *) kmalloc(sizeof(uint64_t));
+    uart_printf("Modifying memory at pointer location (should allocate new page)\r\n");
+    *p = 42;
+    uart_printf("*p = %d (should be 42)\r\n", *p);
+}
+
 void random_test(){
     for(int i = 0; i < 1000; i++){
         uart_printf("-- %d ", random(10000));
@@ -133,11 +143,27 @@ void print_io_formatting_tests() {
     io_printf("Done testing printf formatting\r\n");
 }
 
-void test_io_get_string(){
+void test_io_get_string(int n){
     char buff[256];
-    while(1){
+    for(int i = 0; i < n; i++){
         io_printf(":");
         io_get_string(buff, 256);
         io_printf("Got: %s\r\n", buff);
     }
+}
+
+void time_send(){
+    int code = 1;
+    uint64_t before, after, sum = 0;
+    int i, status, n = 100000;
+    print_reg(CNTFRQ_EL0);
+    uart_printf("Beginning send benchmark\r\n");
+    for(i = 0; i < n; i++){
+        before = time();
+        status = send(INIT_PID, &code, sizeof(int),NULL,0, true);
+        after = time();
+        sum += after - before;
+        assert(status == 0);
+    }
+    uart_printf("On %d tests\r\naverage = %d clock ticks\r\naverage = %d nano-seconds\r\n", n, sum/n, 12*sum/(n  * 10));
 }

@@ -4,7 +4,6 @@
 #include "debug.h"
 int fork(int priority){
     uint64_t ret;
-    assert(get_curr_pid() <= 3);
     #ifdef STACK_DUMP
     uint64_t sp;
     asm volatile("mov %0, sp":"=r"(sp));

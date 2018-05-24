@@ -272,15 +272,13 @@ void fork_test4bis(){
 }
 
 void sched_test1(){
-    uart_verbose("Beginning sched_test1\r\n");
+    uart_printf("Beginning sched_test1\r\n");
     int ret;
     int n = 5;
-    assert(get_curr_pid() == TESTER_PID);
     ret = fork(13);
     assert(ret != -1);
     int first_child = ret;
     if(ret != 0){
-        assert(first_child == 4);
         for(int i = 1; i < n; i++){
             ret = fork(13);
             assert(ret != -1);
@@ -305,13 +303,13 @@ void sched_test1(){
         }
     }
     if(ret == 0){
-        delay(1 << 20);
+        delay(1 << 23);
         exit(1,1);
     }
-    uint64_t return_addr = (uint64_t)__builtin_return_address(0);
-    uart_debug("Ret addr: %x\r\n", return_addr);
+    /* uint64_t return_addr = (uint64_t)__builtin_return_address(0); */
+    /* uart_debug("Ret addr: %x\r\n", return_addr); */
     assert(print_children_from_pid(get_curr_pid()) == 0);
-    uart_verbose("Done sched_test1\r\n");
+    uart_printf("Done sched_test1\r\n");
     return;
 }
 

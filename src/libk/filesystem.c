@@ -53,7 +53,7 @@ struct filesystem_t {
 };
 
 static struct filesystem_t filesystem;
-static struct file_descriptor * file_descriptor_table;
+static struct file_descriptor file_descriptor_table[MAX_FILE_DESCRIPTORS];
 
 /* filesystem type is a string of exactly four characters at the end of the block */
 char * get_filesystem_type (struct filesystem_t * fs) {
@@ -343,7 +343,7 @@ void print_directory (int inode, char * dirname, int max_depth) {
     while (! is_at_end_of_file(fd)) {
         struct dirent_t dirent = read_dirent(fd);
         struct inode_t dir_inode = read_inode(dirent.inode);
-        uart_verbose("%d : %s/%s\r\n", dirent.inode, dirname, dirent.name);
+        uart_printf("%d : %s/%s\r\n", dirent.inode, dirname, dirent.name);
         if (dir_inode.kind == 1 && (! is_special_directory(dirent.name))) {
             char * filename = filename_join(dirname, dirent.name);
             print_directory(dirent.inode, filename, max_depth - 1);
@@ -358,25 +358,25 @@ void print_filesystem_info () {
     // Initialize some memory to avoid breaking output with malloc info
     void * p = kmalloc(100); kfree(p);
 
-    uart_verbose("Partition default (alive)\r\n");
-    uart_verbose("  block_size: %d\r\n", filesystem.block_size);
-    uart_verbose("  block_count: %d\r\n", filesystem.block_count);
-    uart_verbose("  block_word_size: %d\r\n", filesystem.block_word_size);
-    uart_verbose("  i-nodes\r\n");
-    uart_verbose("    blocktable_size: %d\r\n", filesystem.blocktable_size);
-    uart_verbose("    max_file_size: %d\r\n", filesystem.max_file_size);
-    uart_verbose("    blocktable_offset: %d\r\n", filesystem.blocktable_offset);
-    uart_verbose("  superblock\r\n");
-    uart_verbose("    inode_count: %d\r\n", filesystem.inode_count);
-    uart_verbose("    last_free_inode: %d\r\n", filesystem.last_free_inode);
-    uart_verbose("    free_block_list: %d\r\n", filesystem.free_block_list);
-    uart_verbose("    free_block_count: %d\r\n", filesystem.free_block_count);
-    uart_verbose("    fstype: %s\r\n", filesystem.type);
-    uart_verbose("    root_inode: %d\r\n", read_big_endian_int(filesystem.superblock->root_inode));
+    uart_printf("Partition default (alive)\r\n");
+    uart_printf("  block_size: %d\r\n", filesystem.block_size);
+    uart_printf("  block_count: %d\r\n", filesystem.block_count);
+    uart_printf("  block_word_size: %d\r\n", filesystem.block_word_size);
+    uart_printf("  i-nodes\r\n");
+    uart_printf("    blocktable_size: %d\r\n", filesystem.blocktable_size);
+    uart_printf("    max_file_size: %d\r\n", filesystem.max_file_size);
+    uart_printf("    blocktable_offset: %d\r\n", filesystem.blocktable_offset);
+    uart_printf("  superblock\r\n");
+    uart_printf("    inode_count: %d\r\n", filesystem.inode_count);
+    uart_printf("    last_free_inode: %d\r\n", filesystem.last_free_inode);
+    uart_printf("    free_block_list: %d\r\n", filesystem.free_block_list);
+    uart_printf("    free_block_count: %d\r\n", filesystem.free_block_count);
+    uart_printf("    fstype: %s\r\n", filesystem.type);
+    uart_printf("    root_inode: %d\r\n", read_big_endian_int(filesystem.superblock->root_inode));
 
-    /* uart_verbose("/config/auto-aux/gethostbyname.c has inode %d\r\n", inode_of_path("/config/auto-aux/gethostbyname.c")); */
+    /* uart_printf("/config/auto-aux/gethostbyname.c has inode %d\r\n", inode_of_path("/config/auto-aux/gethostbyname.c")); */
 
-    uart_verbose("Printing directory tree\r\n");
+    uart_printf("Printing directory tree\r\n");
     char * root = kmalloc(sizeof(char));
     root[0] = 0;
     print_directory(1, root, 1);
@@ -408,46 +408,46 @@ void print_filesystem_info () {
     kfree(content);
     */
 
-    #define TEST_INODE 822
-    // Print file tail
-    char * content = kmalloc(513 * sizeof(char));
-    int fd = iopen(TEST_INODE);
-    assert(fd != -1);
-    fseek(fd, -128, SEEK_END);
-    read(fd, content, 128);
-    content[128] = 0;
-    uart_verbose("Printing file content\r\n");
-    uart_printf("%s\r\n", content);
-    kfree(content);
-    fclose(fd);
+    /* #define TEST_INODE 822 */
+    /* // Print file tail */
+    /* char * content = kmalloc(513 * sizeof(char)); */
+    /* int fd = iopen(TEST_INODE); */
+    /* assert(fd != -1); */
+    /* fseek(fd, -128, SEEK_END); */
+    /* read(fd, content, 128); */
+    /* content[128] = 0; */
+    /* uart_verbose("Printing file content\r\n"); */
+    /* uart_printf("%s\r\n", content); */
+    /* kfree(content); */
+    /* fclose(fd); */
 
-    // Modify file content
-    uart_verbose("Modifying file content\r\n");
-    fd = iopen(TEST_INODE);
-    assert(fd != -1);
-    char * n_content = "012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678";
-    fseek(fd, 0, SEEK_END);
-    write(fd, n_content, 100);
-    fclose(fd);
+    /* // Modify file content */
+    /* uart_verbose("Modifying file content\r\n"); */
+    /* fd = iopen(TEST_INODE); */
+    /* assert(fd != -1); */
+    /* char * n_content = "012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678"; */
+    /* fseek(fd, 0, SEEK_END); */
+    /* write(fd, n_content, 100); */
+    /* fclose(fd); */
 
-    // Print file content (hopefully modified)
-    content = kmalloc(512 * sizeof(char));
-    fd = iopen(TEST_INODE);
-    assert(fd != -1);
-    fseek(fd, -128, SEEK_END);
-    read(fd, content, 128);
-    content[128] = 0;
-    uart_verbose("Printing file content\r\n");
-    uart_printf("%s\r\n", content);
-    kfree(content);
-    fclose(fd);
+    /* // Print file content (hopefully modified) */
+    /* content = kmalloc(512 * sizeof(char)); */
+    /* fd = iopen(TEST_INODE); */
+    /* assert(fd != -1); */
+    /* fseek(fd, -128, SEEK_END); */
+    /* read(fd, content, 128); */
+    /* content[128] = 0; */
+    /* uart_verbose("Printing file content\r\n"); */
+    /* uart_printf("%s\r\n", content); */
+    /* kfree(content); */
+    /* fclose(fd); */
 
-    assert(0);
+    /* assert(0); */
 
 }
 
 void init_file_descriptor_table () {
-    file_descriptor_table = kmalloc( MAX_FILE_DESCRIPTORS * sizeof(struct file_descriptor));
+    /* file_descriptor_table = kmalloc( MAX_FILE_DESCRIPTORS * sizeof(struct file_descriptor)); */
     for (int i = 0; i < MAX_FILE_DESCRIPTORS; i++) {
       file_descriptor_table[i].closed = 1;
     }
@@ -483,7 +483,6 @@ void init_filesystem () {
     init_file_descriptor_table();
 
     uart_verbose("Filesystem found from 0x%x to 0x%x\r\n", filesystem_start, filesystem_end);
-    /* print_filesystem_info(); */
 }
 
 void move (const char * src_path, const char * dst_path){
