@@ -2,6 +2,8 @@
 
 Projet Rock'n Roll : OS Pour Raspberry Pi en C
 
+Full project report available as PDF: [Project Report](sysres-os_project-report.pdf)
+
 ## Dependencies ##
 
 - [Qemu](https://www.qemu.org/) - Open source machine emulator and virtualizer
